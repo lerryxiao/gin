@@ -1,7 +1,7 @@
 package main
 
 import (
-	"github.com/gin-gonic/gin"
+	"github.com/lerryxiao/gin"
 	"github.com/thinkerou/favicon"
 )
 

@@ -7,7 +7,7 @@ package binding
 import (
 	"net/http"
 
-	"github.com/gin-gonic/gin/json"
+	"github.com/lerryxiao/gin/json"
 )
 
 var (

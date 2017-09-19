@@ -4,7 +4,7 @@ import (
 	"log"
 
 	"github.com/gin-gonic/autotls"
-	"github.com/gin-gonic/gin"
+	"github.com/lerryxiao/gin"
 )
 
 func main() {
