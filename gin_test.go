@@ -158,31 +158,31 @@ func TestLoadHTMLReleaseMode(t *testing.T) {
 
 func TestAddRoute(t *testing.T) {
 	router := New()
-	router.addRoute("GET", "/", HandlersChain{func(_ *Context) {}})
+	router.AddRoute("GET", "/", HandlersChain{func(_ *Context) {}})
 
 	assert.Len(t, router.trees, 1)
 	assert.NotNil(t, router.trees.get("GET"))
 	assert.Nil(t, router.trees.get("POST"))
 
-	router.addRoute("POST", "/", HandlersChain{func(_ *Context) {}})
+	router.AddRoute("POST", "/", HandlersChain{func(_ *Context) {}})
 
 	assert.Len(t, router.trees, 2)
 	assert.NotNil(t, router.trees.get("GET"))
 	assert.NotNil(t, router.trees.get("POST"))
 
-	router.addRoute("POST", "/post", HandlersChain{func(_ *Context) {}})
+	router.AddRoute("POST", "/post", HandlersChain{func(_ *Context) {}})
 	assert.Len(t, router.trees, 2)
 }
 
 func TestAddRouteFails(t *testing.T) {
 	router := New()
-	assert.Panics(t, func() { router.addRoute("", "/", HandlersChain{func(_ *Context) {}}) })
-	assert.Panics(t, func() { router.addRoute("GET", "a", HandlersChain{func(_ *Context) {}}) })
-	assert.Panics(t, func() { router.addRoute("GET", "/", HandlersChain{}) })
+	assert.Panics(t, func() { router.AddRoute("", "/", HandlersChain{func(_ *Context) {}}) })
+	assert.Panics(t, func() { router.AddRoute("GET", "a", HandlersChain{func(_ *Context) {}}) })
+	assert.Panics(t, func() { router.AddRoute("GET", "/", HandlersChain{}) })
 
-	router.addRoute("POST", "/post", HandlersChain{func(_ *Context) {}})
+	router.AddRoute("POST", "/post", HandlersChain{func(_ *Context) {}})
 	assert.Panics(t, func() {
-		router.addRoute("POST", "/post", HandlersChain{func(_ *Context) {}})
+		router.AddRoute("POST", "/post", HandlersChain{func(_ *Context) {}})
 	})
 }
 

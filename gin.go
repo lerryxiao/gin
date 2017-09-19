@@ -56,7 +56,7 @@ type Engine struct {
 	noRoute          HandlersChain
 	noMethod         HandlersChain
 	pool             sync.Pool
-	trees            methodTrees
+	trees            MethodTrees
 
 	// Enables automatic redirection if the current route can't be matched but a
 	// handler for the path with (without) the trailing slash exists.
@@ -128,7 +128,7 @@ func New() *Engine {
 		UseRawPath:             false,
 		UnescapePathValues:     true,
 		MaxMultipartMemory:     defaultMultipartMemory,
-		trees:                  make(methodTrees, 0, 9),
+		trees:                  make(MethodTrees, 0, 9),
 		delims:                 render.Delims{Left: "{{", Right: "}}"},
 		secureJsonPrefix:       "while(1);",
 	}
@@ -144,6 +144,10 @@ func Default() *Engine {
 	engine := New()
 	engine.Use(Logger(), Recovery())
 	return engine
+}
+
+func (engin *Engine) Trees() *MethodTrees {
+	return &engin.trees
 }
 
 func (engine *Engine) allocateContext() *Context {
@@ -223,7 +227,8 @@ func (engine *Engine) rebuild405Handlers() {
 	engine.allNoMethod = engine.combineHandlers(engine.noMethod)
 }
 
-func (engine *Engine) addRoute(method, path string, handlers HandlersChain) {
+// AddRoute register mentod path with handlers
+func (engine *Engine) AddRoute(method, path string, handlers HandlersChain) {
 	assert1(path[0] == '/', "path must begin with '/'")
 	assert1(len(method) > 0, "HTTP method can not be empty")
 	assert1(len(handlers) > 0, "there must be at least one handler")
@@ -231,10 +236,34 @@ func (engine *Engine) addRoute(method, path string, handlers HandlersChain) {
 	debugPrintRoute(method, path, handlers)
 	root := engine.trees.get(method)
 	if root == nil {
-		root = new(node)
-		engine.trees = append(engine.trees, methodTree{method: method, root: root})
+		root = new(Node)
+		engine.trees = append(engine.trees, MethodTree{method: method, root: root})
 	}
-	root.addRoute(path, handlers)
+	root.AddRoute(path, handlers)
+}
+
+// GetHandlers check has mentod path registed
+func (engine *Engine) GetHandlers(method, path string) HandlersChain {
+	if len(method) <= 0 || len(path) <= 0 || path[0] != '/' {
+		return nil
+	}
+	root := engine.trees.get(method)
+	if root == nil {
+		return nil
+	}
+	return root.GetHandlers(path)
+}
+
+// DelRoute check has mentod path registed
+func (engine *Engine) DelRoute(method, path string, handlers HandlersChain) {
+	if len(method) <= 0 || len(path) <= 0 || path[0] != '/' || len(handlers) <= 0 {
+		return
+	}
+	root := engine.trees.get(method)
+	if root == nil {
+		return
+	}
+	root.DelRoute(path, handlers)
 }
 
 // Routes returns a slice of registered routes, including some useful information, such as:
@@ -246,7 +275,7 @@ func (engine *Engine) Routes() (routes RoutesInfo) {
 	return routes
 }
 
-func iterate(path, method string, routes RoutesInfo, root *node) RoutesInfo {
+func iterate(path, method string, routes RoutesInfo, root *Node) RoutesInfo {
 	path += root.path
 	if len(root.handlers) > 0 {
 		routes = append(routes, RouteInfo{
@@ -406,7 +435,7 @@ func redirectTrailingSlash(c *Context) {
 	c.writermem.WriteHeaderNow()
 }
 
-func redirectFixedPath(c *Context, root *node, trailingSlash bool) bool {
+func redirectFixedPath(c *Context, root *Node, trailingSlash bool) bool {
 	req := c.Request
 	path := req.URL.Path
 

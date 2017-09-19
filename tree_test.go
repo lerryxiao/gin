@@ -11,7 +11,7 @@ import (
 	"testing"
 )
 
-func printChildren(n *node, prefix string) {
+func printChildren(n *Node, prefix string) {
 	fmt.Printf(" %02d:%02d %s%s[%d] %v %t %d \r\n", n.priority, n.maxParams, prefix, n.path, len(n.children), n.handlers, n.wildChild, n.nType)
 	for l := len(n.path); l > 0; l-- {
 		prefix += " "
@@ -37,7 +37,7 @@ type testRequests []struct {
 	ps         Params
 }
 
-func checkRequests(t *testing.T, tree *node, requests testRequests, unescapes ...bool) {
+func checkRequests(t *testing.T, tree *Node, requests testRequests, unescapes ...bool) {
 	unescape := false
 	if len(unescapes) >= 1 {
 		unescape = unescapes[0]
@@ -65,7 +65,7 @@ func checkRequests(t *testing.T, tree *node, requests testRequests, unescapes ..
 	}
 }
 
-func checkPriorities(t *testing.T, n *node) uint32 {
+func checkPriorities(t *testing.T, n *Node) uint32 {
 	var prio uint32
 	for i := range n.children {
 		prio += checkPriorities(t, n.children[i])
@@ -85,7 +85,7 @@ func checkPriorities(t *testing.T, n *node) uint32 {
 	return prio
 }
 
-func checkMaxParams(t *testing.T, n *node) uint8 {
+func checkMaxParams(t *testing.T, n *Node) uint8 {
 	var maxParams uint8
 	for i := range n.children {
 		params := checkMaxParams(t, n.children[i])
@@ -117,7 +117,7 @@ func TestCountParams(t *testing.T) {
 }
 
 func TestTreeAddAndGet(t *testing.T) {
-	tree := &node{}
+	tree := &Node{}
 
 	routes := [...]string{
 		"/hi",
@@ -133,7 +133,7 @@ func TestTreeAddAndGet(t *testing.T) {
 		"/β",
 	}
 	for _, route := range routes {
-		tree.addRoute(route, fakeHandler(route))
+		tree.AddRoute(route, fakeHandler(route))
 	}
 
 	//printChildren(tree, "")
@@ -157,7 +157,7 @@ func TestTreeAddAndGet(t *testing.T) {
 }
 
 func TestTreeWildcard(t *testing.T) {
-	tree := &node{}
+	tree := &Node{}
 
 	routes := [...]string{
 		"/",
@@ -176,7 +176,7 @@ func TestTreeWildcard(t *testing.T) {
 		"/info/:user/project/:project",
 	}
 	for _, route := range routes {
-		tree.addRoute(route, fakeHandler(route))
+		tree.AddRoute(route, fakeHandler(route))
 	}
 
 	//printChildren(tree, "")
@@ -203,7 +203,7 @@ func TestTreeWildcard(t *testing.T) {
 }
 
 func TestUnescapeParameters(t *testing.T) {
-	tree := &node{}
+	tree := &Node{}
 
 	routes := [...]string{
 		"/",
@@ -216,7 +216,7 @@ func TestUnescapeParameters(t *testing.T) {
 		"/info/:user",
 	}
 	for _, route := range routes {
-		tree.addRoute(route, fakeHandler(route))
+		tree.AddRoute(route, fakeHandler(route))
 	}
 
 	//printChildren(tree, "")
@@ -256,11 +256,11 @@ type testRoute struct {
 }
 
 func testRoutes(t *testing.T, routes []testRoute) {
-	tree := &node{}
+	tree := &Node{}
 
 	for _, route := range routes {
 		recv := catchPanic(func() {
-			tree.addRoute(route.path, nil)
+			tree.AddRoute(route.path, nil)
 		})
 
 		if route.conflict {
@@ -313,7 +313,7 @@ func TestTreeChildConflict(t *testing.T) {
 }
 
 func TestTreeDupliatePath(t *testing.T) {
-	tree := &node{}
+	tree := &Node{}
 
 	routes := [...]string{
 		"/",
@@ -324,7 +324,7 @@ func TestTreeDupliatePath(t *testing.T) {
 	}
 	for _, route := range routes {
 		recv := catchPanic(func() {
-			tree.addRoute(route, fakeHandler(route))
+			tree.AddRoute(route, fakeHandler(route))
 		})
 		if recv != nil {
 			t.Fatalf("panic inserting route '%s': %v", route, recv)
@@ -332,7 +332,7 @@ func TestTreeDupliatePath(t *testing.T) {
 
 		// Add again
 		recv = catchPanic(func() {
-			tree.addRoute(route, nil)
+			tree.AddRoute(route, nil)
 		})
 		if recv == nil {
 			t.Fatalf("no panic while inserting duplicate route '%s", route)
@@ -351,7 +351,7 @@ func TestTreeDupliatePath(t *testing.T) {
 }
 
 func TestEmptyWildcardName(t *testing.T) {
-	tree := &node{}
+	tree := &Node{}
 
 	routes := [...]string{
 		"/user:",
@@ -361,7 +361,7 @@ func TestEmptyWildcardName(t *testing.T) {
 	}
 	for _, route := range routes {
 		recv := catchPanic(func() {
-			tree.addRoute(route, nil)
+			tree.AddRoute(route, nil)
 		})
 		if recv == nil {
 			t.Fatalf("no panic while inserting route with empty wildcard name '%s", route)
@@ -396,9 +396,9 @@ func TestTreeDoubleWildcard(t *testing.T) {
 	}
 
 	for _, route := range routes {
-		tree := &node{}
+		tree := &Node{}
 		recv := catchPanic(func() {
-			tree.addRoute(route, nil)
+			tree.AddRoute(route, nil)
 		})
 
 		if rs, ok := recv.(string); !ok || !strings.HasPrefix(rs, panicMsg) {
@@ -408,7 +408,7 @@ func TestTreeDoubleWildcard(t *testing.T) {
 }
 
 /*func TestTreeDuplicateWildcard(t *testing.T) {
-	tree := &node{}
+	tree := &Node{}
 	routes := [...]string{
 		"/:id/:name/:id",
 	}
@@ -418,7 +418,7 @@ func TestTreeDoubleWildcard(t *testing.T) {
 }*/
 
 func TestTreeTrailingSlashRedirect(t *testing.T) {
-	tree := &node{}
+	tree := &Node{}
 
 	routes := [...]string{
 		"/hi",
@@ -448,7 +448,7 @@ func TestTreeTrailingSlashRedirect(t *testing.T) {
 	}
 	for _, route := range routes {
 		recv := catchPanic(func() {
-			tree.addRoute(route, fakeHandler(route))
+			tree.AddRoute(route, fakeHandler(route))
 		})
 		if recv != nil {
 			t.Fatalf("panic inserting route '%s': %v", route, recv)
@@ -501,10 +501,10 @@ func TestTreeTrailingSlashRedirect(t *testing.T) {
 }
 
 func TestTreeRootTrailingSlashRedirect(t *testing.T) {
-	tree := &node{}
+	tree := &Node{}
 
 	recv := catchPanic(func() {
-		tree.addRoute("/:test", fakeHandler("/:test"))
+		tree.AddRoute("/:test", fakeHandler("/:test"))
 	})
 	if recv != nil {
 		t.Fatalf("panic inserting test route: %v", recv)
@@ -519,7 +519,7 @@ func TestTreeRootTrailingSlashRedirect(t *testing.T) {
 }
 
 func TestTreeFindCaseInsensitivePath(t *testing.T) {
-	tree := &node{}
+	tree := &Node{}
 
 	routes := [...]string{
 		"/hi",
@@ -548,7 +548,7 @@ func TestTreeFindCaseInsensitivePath(t *testing.T) {
 
 	for _, route := range routes {
 		recv := catchPanic(func() {
-			tree.addRoute(route, fakeHandler(route))
+			tree.AddRoute(route, fakeHandler(route))
 		})
 		if recv != nil {
 			t.Fatalf("panic inserting route '%s': %v", route, recv)
@@ -652,9 +652,9 @@ func TestTreeFindCaseInsensitivePath(t *testing.T) {
 func TestTreeInvalidNodeType(t *testing.T) {
 	const panicMsg = "invalid node type"
 
-	tree := &node{}
-	tree.addRoute("/", fakeHandler("/"))
-	tree.addRoute("/:page", fakeHandler("/:page"))
+	tree := &Node{}
+	tree.AddRoute("/", fakeHandler("/"))
+	tree.AddRoute("/:page", fakeHandler("/:page"))
 
 	// set invalid node type
 	tree.children[0].nType = 42

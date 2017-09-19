@@ -34,6 +34,18 @@ type IRoutes interface {
 	StaticFS(string, http.FileSystem) IRoutes
 }
 
+var RouterFuncs []string = []string{
+	"GET",
+	"POST",
+	"PUT",
+	"PATCH",
+	"HEAD",
+	"OPTIONS",
+	"DELETE",
+	"CONNECT",
+	"TRACE",
+}
+
 // RouterGroup is used internally to configure router, a RouterGroup is associated with a prefix
 // and an array of handlers (middleware).
 type RouterGroup struct {
@@ -68,7 +80,7 @@ func (group *RouterGroup) BasePath() string {
 func (group *RouterGroup) handle(httpMethod, relativePath string, handlers HandlersChain) IRoutes {
 	absolutePath := group.calculateAbsolutePath(relativePath)
 	handlers = group.combineHandlers(handlers)
-	group.engine.addRoute(httpMethod, absolutePath, handlers)
+	group.engine.AddRoute(httpMethod, absolutePath, handlers)
 	return group.returnObj()
 }
 
@@ -127,15 +139,23 @@ func (group *RouterGroup) HEAD(relativePath string, handlers ...HandlerFunc) IRo
 // Any registers a route that matches all the HTTP methods.
 // GET, POST, PUT, PATCH, HEAD, OPTIONS, DELETE, CONNECT, TRACE.
 func (group *RouterGroup) Any(relativePath string, handlers ...HandlerFunc) IRoutes {
-	group.handle("GET", relativePath, handlers)
-	group.handle("POST", relativePath, handlers)
-	group.handle("PUT", relativePath, handlers)
-	group.handle("PATCH", relativePath, handlers)
-	group.handle("HEAD", relativePath, handlers)
-	group.handle("OPTIONS", relativePath, handlers)
-	group.handle("DELETE", relativePath, handlers)
-	group.handle("CONNECT", relativePath, handlers)
-	group.handle("TRACE", relativePath, handlers)
+	for _, key := range RouterFuncs {
+		group.handle(key, relativePath, handlers)
+	}
+	return group.returnObj()
+}
+
+// Has return the http handlers register by method and relativePath
+func (group *RouterGroup) GetHandlers(method, relativePath string) HandlersChain {
+	absolutePath := group.calculateAbsolutePath(relativePath)
+	return group.engine.GetHandlers(method, absolutePath)
+}
+
+// Del delete registed handlers by method and path
+func (group *RouterGroup) Del(method, relativePath string, handlers ...HandlerFunc) IRoutes {
+	absolutePath := group.calculateAbsolutePath(relativePath)
+	handlers = group.combineHandlers(handlers)
+	group.engine.DelRoute(method, absolutePath, handlers)
 	return group.returnObj()
 }
 
