@@ -5,6 +5,7 @@
 package gin
 
 import (
+	"fmt"
 	"net/url"
 	"reflect"
 	"strings"
@@ -277,15 +278,18 @@ func (n *Node) getNode(path string) *Node {
 }
 
 // GetRouters get all Routers
-func (n *Node) GetRouters(nodes *NodeChain) {
+func (n *Node) GetRouters(base string, nodes *[]string) {
 	if n == nil || nodes == nil {
 		return
 	}
-	*nodes = append(*nodes, n)
+	path := fmt.Sprintf("%s%s", base, n.path)
+	if len(n.handlers) > 0 {
+		*nodes = append(*nodes, path)
+	}
 	if n.children != nil {
 		for _, child := range n.children {
 			if child != nil {
-				child.GetRouters(nodes)
+				child.GetRouters(path, nodes)
 			}
 		}
 	}
