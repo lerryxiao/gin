@@ -5,6 +5,7 @@
 package gin
 
 import (
+	"fmt"
 	"html/template"
 	"net"
 	"net/http"
@@ -99,6 +100,9 @@ type Engine struct {
 	// Value of 'maxMemory' param that is given to http.Request's ParseMultipartForm
 	// method call.
 	MaxMultipartMemory int64
+
+	// mark info when call Group func
+	groupRouter []string
 }
 
 var _ IRouter = &Engine{}
@@ -400,6 +404,20 @@ func (engine *Engine) handleHTTPRequest(context *Context) {
 	}
 	context.handlers = engine.allNoRoute
 	serveError(context, 404, default404Body)
+}
+
+func (engine *Engine) markRoute(path string, group bool) {
+	if len(path) > 0 {
+		if group == true {
+			engine.groupRouter = append(engine.groupRouter, fmt.Sprintf("^~ %s", path))
+		} else {
+			engine.groupRouter = append(engine.groupRouter, path)
+		}
+	}
+}
+
+func (engine *Engine) getGroupRoute() *[]string {
+	return &engine.groupRouter
 }
 
 var mimePlain = []string{MIMEPlain}

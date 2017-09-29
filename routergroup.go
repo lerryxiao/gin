@@ -66,9 +66,11 @@ func (group *RouterGroup) Use(middleware ...HandlerFunc) IRoutes {
 // Group creates a new router group. You should add all the routes that have common middlwares or the same path prefix.
 // For example, all the routes that use a common middlware for authorization could be grouped.
 func (group *RouterGroup) Group(relativePath string, handlers ...HandlerFunc) *RouterGroup {
+	absolutePath := group.calculateAbsolutePath(relativePath)
+	group.engine.markRoute(absolutePath, true)
 	return &RouterGroup{
 		Handlers: group.combineHandlers(handlers),
-		basePath: group.calculateAbsolutePath(relativePath),
+		basePath: absolutePath,
 		engine:   group.engine,
 	}
 }
@@ -81,6 +83,9 @@ func (group *RouterGroup) handle(httpMethod, relativePath string, handlers Handl
 	absolutePath := group.calculateAbsolutePath(relativePath)
 	handlers = group.combineHandlers(handlers)
 	group.engine.AddRoute(httpMethod, absolutePath, handlers)
+	if group.root == true {
+		group.engine.markRoute(absolutePath, false)
+	}
 	return group.returnObj()
 }
 
@@ -230,4 +235,9 @@ func (group *RouterGroup) returnObj() IRoutes {
 		return group.engine
 	}
 	return group
+}
+
+// GetGroupRoute get the mark group info
+func (group *RouterGroup) GetGroupRoute() *[]string {
+	return group.engine.getGroupRoute()
 }
