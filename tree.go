@@ -257,17 +257,17 @@ func (n *Node) AddRoute(path string, handlers HandlersChain) {
 	}
 }
 
-func (n *Node) getNode(path string) *Node {
+func (n *Node) getNode(path, parent string) *Node {
 	if n == nil {
 		return nil
 	}
-	if n.path == path {
+	if parent+n.path == path {
 		return n
 	}
 	if n.children != nil {
 		for _, child := range n.children {
 			if child != nil {
-				node := child.getNode(path)
+				node := child.getNode(path, parent+n.path)
 				if node != nil {
 					return node
 				}
@@ -297,7 +297,7 @@ func (n *Node) GetRouters(base string, nodes *[]string) {
 
 // GetHandlers get handlers by given path
 func (n *Node) GetHandlers(path string) HandlersChain {
-	node := n.getNode(path)
+	node := n.getNode(path, "")
 	if node == nil {
 		return nil
 	}
@@ -306,7 +306,7 @@ func (n *Node) GetHandlers(path string) HandlersChain {
 
 // DelRoute del handlers by given path
 func (n *Node) DelRoute(path string, handlers HandlersChain) {
-	node := n.getNode(path)
+	node := n.getNode(path, "")
 	if node == nil {
 		return
 	}
