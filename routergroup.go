@@ -49,10 +49,12 @@ var RouterFuncs []string = []string{
 // RouterGroup is used internally to configure router, a RouterGroup is associated with a prefix
 // and an array of handlers (middleware).
 type RouterGroup struct {
-	Handlers HandlersChain
-	basePath string
-	engine   *Engine
-	root     bool
+	Handlers  HandlersChain
+	basePath  string
+	engine    *Engine
+	root      bool
+	routers   []string
+	hasrouter bool
 }
 
 var _ IRouter = &RouterGroup{}
@@ -67,11 +69,23 @@ func (group *RouterGroup) Use(middleware ...HandlerFunc) IRoutes {
 // For example, all the routes that use a common middlware for authorization could be grouped.
 func (group *RouterGroup) Group(relativePath string, handlers ...HandlerFunc) *RouterGroup {
 	absolutePath := group.calculateAbsolutePath(relativePath)
+	if absolutePath == group.basePath {
+		return group
+	}
 	group.engine.markRoute(absolutePath, true)
+	if len(group.routers) > 0 {
+		for _, path := range group.routers {
+			group.engine.markRoute(path, false)
+		}
+		group.routers = make([]string, 0)
+		group.hasrouter = true
+	}
 	return &RouterGroup{
-		Handlers: group.combineHandlers(handlers),
-		basePath: absolutePath,
-		engine:   group.engine,
+		Handlers:  group.combineHandlers(handlers),
+		basePath:  absolutePath,
+		engine:    group.engine,
+		routers:   make([]string, 0),
+		hasrouter: false,
 	}
 }
 
@@ -83,8 +97,10 @@ func (group *RouterGroup) handle(httpMethod, relativePath string, handlers Handl
 	absolutePath := group.calculateAbsolutePath(relativePath)
 	handlers = group.combineHandlers(handlers)
 	group.engine.AddRoute(httpMethod, absolutePath, handlers)
-	if group.root == true {
+	if group.root == true || group.hasrouter == true {
 		group.engine.markRoute(absolutePath, false)
+	} else {
+		group.routers = append(group.routers, absolutePath)
 	}
 	return group.returnObj()
 }
