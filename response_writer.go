@@ -16,6 +16,7 @@ const (
 	defaultStatus = 200
 )
 
+// ResponseWriter 返回结果
 type ResponseWriter interface {
 	http.ResponseWriter
 	http.Hijacker

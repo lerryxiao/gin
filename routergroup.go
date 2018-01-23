@@ -11,11 +11,13 @@ import (
 	"strings"
 )
 
+// IRouter 路由
 type IRouter interface {
 	IRoutes
 	Group(string, ...HandlerFunc) *RouterGroup
 }
 
+// IRoutes 路由组
 type IRoutes interface {
 	Use(...HandlerFunc) IRoutes
 
@@ -34,16 +36,21 @@ type IRoutes interface {
 	StaticFS(string, http.FileSystem) IRoutes
 }
 
-var RouterFuncs []string = []string{
-	"GET",
-	"POST",
-	"PUT",
-	"PATCH",
-	"HEAD",
-	"OPTIONS",
-	"DELETE",
-	"CONNECT",
-	"TRACE",
+// RouterFuncs 路由支持方法
+var RouterFuncs []string
+
+func initRouter() {
+	RouterFuncs = []string{
+		"GET",
+		"POST",
+		"PUT",
+		"PATCH",
+		"HEAD",
+		"OPTIONS",
+		"DELETE",
+		"CONNECT",
+		"TRACE",
+	}
 }
 
 // RouterGroup is used internally to configure router, a RouterGroup is associated with a prefix
@@ -89,6 +96,7 @@ func (group *RouterGroup) Group(relativePath string, handlers ...HandlerFunc) *R
 	}
 }
 
+// BasePath 基础目录
 func (group *RouterGroup) BasePath() string {
 	return group.basePath
 }
@@ -166,7 +174,7 @@ func (group *RouterGroup) Any(relativePath string, handlers ...HandlerFunc) IRou
 	return group.returnObj()
 }
 
-// Has return the http handlers register by method and relativePath
+// GetHandlers Has return the http handlers register by method and relativePath
 func (group *RouterGroup) GetHandlers(method, relativePath string) HandlersChain {
 	absolutePath := group.calculateAbsolutePath(relativePath)
 	return group.engine.GetHandlers(method, absolutePath)

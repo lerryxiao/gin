@@ -12,18 +12,25 @@ import (
 	"github.com/lerryxiao/gin/json"
 )
 
+// ErrorType 错误类型
 type ErrorType uint64
 
 const (
-	ErrorTypeBind    ErrorType = 1 << 63 // used when c.Bind() fails
-	ErrorTypeRender  ErrorType = 1 << 62 // used when c.Render() fails
+	// ErrorTypeBind 绑定错误
+	ErrorTypeBind ErrorType = 1 << 63 // used when c.Bind() fails
+	// ErrorTypeRender 渲染错误
+	ErrorTypeRender ErrorType = 1 << 62 // used when c.Render() fails
+	// ErrorTypePrivate 私有错误
 	ErrorTypePrivate ErrorType = 1 << 0
-	ErrorTypePublic  ErrorType = 1 << 1
-
+	// ErrorTypePublic 公共错误
+	ErrorTypePublic ErrorType = 1 << 1
+	// ErrorTypeAny 任意错误
 	ErrorTypeAny ErrorType = 1<<64 - 1
-	ErrorTypeNu            = 2
+	// ErrorTypeNu 空错误
+	ErrorTypeNu = 2
 )
 
+// Error 错误结构
 type Error struct {
 	Err  error
 	Type ErrorType
@@ -34,16 +41,19 @@ type errorMsgs []*Error
 
 var _ error = &Error{}
 
+// SetType 设置错误类型
 func (msg *Error) SetType(flags ErrorType) *Error {
 	msg.Type = flags
 	return msg
 }
 
+// SetMeta 设置错误内容
 func (msg *Error) SetMeta(data interface{}) *Error {
 	msg.Meta = data
 	return msg
 }
 
+// JSON 序列化json
 func (msg *Error) JSON() interface{} {
 	json := H{}
 	if msg.Meta != nil {
@@ -75,6 +85,7 @@ func (msg Error) Error() string {
 	return msg.Err.Error()
 }
 
+// IsType 是否某个类型
 func (msg *Error) IsType(flags ErrorType) bool {
 	return (msg.Type & flags) > 0
 }

@@ -764,7 +764,7 @@ func main() {
 	r := gin.Default()
 
 	// You can also use your own secure json prefix
-	// r.SecureJsonPrefix(")]}',\n")
+	// r.SecureJSONPrefix(")]}',\n")
 
 	r.GET("/someJSON", func(c *gin.Context) {
 		names := []string{"lena", "austin", "foo"}

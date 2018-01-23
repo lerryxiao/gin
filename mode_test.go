@@ -13,13 +13,13 @@ import (
 )
 
 func init() {
-	os.Setenv(ENV_GIN_MODE, TestMode)
+	os.Setenv(EnvGinMode, TestMode)
 }
 
 func TestSetMode(t *testing.T) {
 	assert.Equal(t, ginMode, testCode)
 	assert.Equal(t, Mode(), TestMode)
-	os.Unsetenv(ENV_GIN_MODE)
+	os.Unsetenv(EnvGinMode)
 
 	SetMode(DebugMode)
 	assert.Equal(t, ginMode, debugCode)
@@ -38,6 +38,6 @@ func TestSetMode(t *testing.T) {
 
 func TestEnableJsonDecoderUseNumber(t *testing.T) {
 	assert.False(t, binding.EnableDecoderUseNumber)
-	EnableJsonDecoderUseNumber()
+	EnableJSONDecoderUseNumber()
 	assert.True(t, binding.EnableDecoderUseNumber)
 }

@@ -613,6 +613,7 @@ func (c *Context) Cookie(name string) (string, error) {
 	return val, nil
 }
 
+// Render 渲染
 func (c *Context) Render(code int, r render.Render) {
 	c.Status(code)
 
@@ -647,7 +648,7 @@ func (c *Context) IndentedJSON(code int, obj interface{}) {
 // Default prepends "while(1)," to response body if the given struct is array values.
 // It also sets the Content-Type as "application/json".
 func (c *Context) SecureJSON(code int, obj interface{}) {
-	c.Render(code, render.SecureJSON{Prefix: c.engine.secureJsonPrefix, Data: obj})
+	c.Render(code, render.SecureJSON{Prefix: c.engine.secureJSONPrefix, Data: obj})
 }
 
 // JSON serializes the given struct as JSON into the response body.
@@ -702,6 +703,7 @@ func (c *Context) SSEvent(name string, message interface{}) {
 	})
 }
 
+// Stream 流
 func (c *Context) Stream(step func(w io.Writer) bool) {
 	w := c.Writer
 	clientGone := w.CloseNotify()
@@ -723,6 +725,7 @@ func (c *Context) Stream(step func(w io.Writer) bool) {
 /******** CONTENT NEGOTIATION *******/
 /************************************/
 
+// Negotiate 交流数据
 type Negotiate struct {
 	Offered  []string
 	HTMLName string
@@ -732,25 +735,32 @@ type Negotiate struct {
 	Data     interface{}
 }
 
+// Negotiate 返回数据
 func (c *Context) Negotiate(code int, config Negotiate) {
 	switch c.NegotiateFormat(config.Offered...) {
 	case binding.MIMEJSON:
-		data := chooseData(config.JSONData, config.Data)
-		c.JSON(code, data)
-
+		{
+			data := chooseData(config.JSONData, config.Data)
+			c.JSON(code, data)
+		}
 	case binding.MIMEHTML:
-		data := chooseData(config.HTMLData, config.Data)
-		c.HTML(code, config.HTMLName, data)
-
+		{
+			data := chooseData(config.HTMLData, config.Data)
+			c.HTML(code, config.HTMLName, data)
+		}
 	case binding.MIMEXML:
-		data := chooseData(config.XMLData, config.Data)
-		c.XML(code, data)
-
+		{
+			data := chooseData(config.XMLData, config.Data)
+			c.XML(code, data)
+		}
 	default:
-		c.AbortWithError(http.StatusNotAcceptable, errors.New("the accepted formats are not offered by the server"))
+		{
+			c.AbortWithError(http.StatusNotAcceptable, errors.New("the accepted formats are not offered by the server"))
+		}
 	}
 }
 
+// NegotiateFormat 返回数据
 func (c *Context) NegotiateFormat(offered ...string) string {
 	assert1(len(offered) > 0, "you must provide at least one offer")
 
@@ -770,6 +780,7 @@ func (c *Context) NegotiateFormat(offered ...string) string {
 	return ""
 }
 
+// SetAccepted 设置accept数据
 func (c *Context) SetAccepted(formats ...string) {
 	c.Accepted = formats
 }
@@ -778,18 +789,22 @@ func (c *Context) SetAccepted(formats ...string) {
 /***** GOLANG.ORG/X/NET/CONTEXT *****/
 /************************************/
 
+// Deadline 超时
 func (c *Context) Deadline() (deadline time.Time, ok bool) {
 	return
 }
 
+// Done 完成
 func (c *Context) Done() <-chan struct{} {
 	return nil
 }
 
+// Err 出错
 func (c *Context) Err() error {
 	return nil
 }
 
+// Value 查询数据
 func (c *Context) Value(key interface{}) interface{} {
 	if key == 0 {
 		return c.Request

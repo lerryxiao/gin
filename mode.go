@@ -11,12 +11,16 @@ import (
 	"github.com/lerryxiao/gin/binding"
 )
 
-const ENV_GIN_MODE = "GIN_MODE"
+// EnvGinMode gin环境变量
+const EnvGinMode = "GIN_MODE"
 
 const (
-	DebugMode   string = "debug"
+	// DebugMode 调试模式
+	DebugMode string = "debug"
+	// ReleaseMode 费调试模式
 	ReleaseMode string = "release"
-	TestMode    string = "test"
+	// TestMode 测试模式
+	TestMode string = "test"
 )
 const (
 	debugCode = iota
@@ -32,20 +36,26 @@ const (
 // 		import "github.com/mattn/go-colorable"
 // 		gin.DefaultWriter = colorable.NewColorableStdout()
 var DefaultWriter io.Writer = os.Stdout
+
+// DefaultErrorWriter 默认错误输出
 var DefaultErrorWriter io.Writer = os.Stderr
 
 var ginMode = debugCode
 var modeName = DebugMode
 
 func init() {
-	mode := os.Getenv(ENV_GIN_MODE)
+	initDebug()
+	mode := os.Getenv(EnvGinMode)
 	if len(mode) == 0 {
 		SetMode(DebugMode)
 	} else {
 		SetMode(mode)
 	}
+	initRouter()
+	initProfile()
 }
 
+// SetMode 设置运行模式
 func SetMode(value string) {
 	switch value {
 	case DebugMode:
@@ -60,14 +70,17 @@ func SetMode(value string) {
 	modeName = value
 }
 
+// DisableBindValidation 无法绑定
 func DisableBindValidation() {
 	binding.Validator = nil
 }
 
-func EnableJsonDecoderUseNumber() {
+// EnableJSONDecoderUseNumber json解码使用数字
+func EnableJSONDecoderUseNumber() {
 	binding.EnableDecoderUseNumber = true
 }
 
+// Mode 模式
 func Mode() string {
 	return modeName
 }

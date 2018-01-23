@@ -10,7 +10,7 @@ import (
 	"log"
 )
 
-func init() {
+func initDebug() {
 	log.SetFlags(0)
 }
 

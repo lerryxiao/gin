@@ -14,8 +14,10 @@ import (
 	"strings"
 )
 
+// BindKey 绑定key
 const BindKey = "_lerryxiao/gin/bindkey"
 
+// Bind 绑定方法
 func Bind(val interface{}) HandlerFunc {
 	value := reflect.ValueOf(val)
 	if value.Kind() == reflect.Ptr {
@@ -33,18 +35,21 @@ func Bind(val interface{}) HandlerFunc {
 	}
 }
 
+// WrapF 方法包装
 func WrapF(f http.HandlerFunc) HandlerFunc {
 	return func(c *Context) {
 		f(c.Writer, c.Request)
 	}
 }
 
+// WrapH 处理回调包装
 func WrapH(h http.Handler) HandlerFunc {
 	return func(c *Context) {
 		h.ServeHTTP(c.Writer, c.Request)
 	}
 }
 
+// H 字符串任意map
 type H map[string]interface{}
 
 // MarshalXML allows type H to be used with xml.Marshal.
@@ -53,7 +58,8 @@ func (h H) MarshalXML(e *xml.Encoder, start xml.StartElement) error {
 		Space: "",
 		Local: "map",
 	}
-	if err := e.EncodeToken(start); err != nil {
+	err := e.EncodeToken(start)
+	if err != nil {
 		return err
 	}
 	for key, value := range h {
@@ -65,7 +71,8 @@ func (h H) MarshalXML(e *xml.Encoder, start xml.StartElement) error {
 			return err
 		}
 	}
-	if err := e.EncodeToken(xml.EndElement{Name: start.Name}); err != nil {
+	err = e.EncodeToken(xml.EndElement{Name: start.Name})
+	if err != nil {
 		return err
 	}
 	return nil

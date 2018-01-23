@@ -25,7 +25,10 @@ var default404Body = []byte("404 page not found")
 var default405Body = []byte("405 method not allowed")
 var defaultAppEngine bool
 
+// HandlerFunc 回调函数
 type HandlerFunc func(*Context)
+
+// HandlersChain 回调函数数组
 type HandlersChain []HandlerFunc
 
 // Last returns the last handler in the chain. ie. the last handler is the main own.
@@ -36,12 +39,14 @@ func (c HandlersChain) Last() HandlerFunc {
 	return nil
 }
 
+// RouteInfo 路由信息
 type RouteInfo struct {
 	Method  string
 	Path    string
 	Handler string
 }
 
+// RoutesInfo 路由数组
 type RoutesInfo []RouteInfo
 
 // Engine is the framework's instance, it contains the muxer, middleware and configuration settings.
@@ -49,7 +54,7 @@ type RoutesInfo []RouteInfo
 type Engine struct {
 	RouterGroup
 	delims           render.Delims
-	secureJsonPrefix string
+	secureJSONPrefix string
 	HTMLRender       render.HTMLRender
 	FuncMap          template.FuncMap
 	allNoRoute       HandlersChain
@@ -134,7 +139,7 @@ func New() *Engine {
 		MaxMultipartMemory:     defaultMultipartMemory,
 		trees:                  make(MethodTrees, 0, 9),
 		delims:                 render.Delims{Left: "{{", Right: "}}"},
-		secureJsonPrefix:       "while(1);",
+		secureJSONPrefix:       "while(1);",
 	}
 	engine.RouterGroup.engine = engine
 	engine.pool.New = func() interface{} {
@@ -150,108 +155,114 @@ func Default() *Engine {
 	return engine
 }
 
+// Trees 目录表
 func (engin *Engine) Trees() *MethodTrees {
 	return &engin.trees
 }
 
-func (engine *Engine) allocateContext() *Context {
-	return &Context{engine: engine}
+func (engin *Engine) allocateContext() *Context {
+	return &Context{engine: engin}
 }
 
-func (engine *Engine) Delims(left, right string) *Engine {
-	engine.delims = render.Delims{Left: left, Right: right}
-	return engine
+// Delims 切分
+func (engin *Engine) Delims(left, right string) *Engine {
+	engin.delims = render.Delims{Left: left, Right: right}
+	return engin
 }
 
-func (engine *Engine) SecureJsonPrefix(prefix string) *Engine {
-	engine.secureJsonPrefix = prefix
-	return engine
+// SecureJSONPrefix json前缀
+func (engin *Engine) SecureJSONPrefix(prefix string) *Engine {
+	engin.secureJSONPrefix = prefix
+	return engin
 }
 
-func (engine *Engine) LoadHTMLGlob(pattern string) {
+// LoadHTMLGlob 加载html
+func (engin *Engine) LoadHTMLGlob(pattern string) {
 	if IsDebugging() {
-		debugPrintLoadTemplate(template.Must(template.New("").Delims(engine.delims.Left, engine.delims.Right).Funcs(engine.FuncMap).ParseGlob(pattern)))
-		engine.HTMLRender = render.HTMLDebug{Glob: pattern, FuncMap: engine.FuncMap, Delims: engine.delims}
+		debugPrintLoadTemplate(template.Must(template.New("").Delims(engin.delims.Left, engin.delims.Right).Funcs(engin.FuncMap).ParseGlob(pattern)))
+		engin.HTMLRender = render.HTMLDebug{Glob: pattern, FuncMap: engin.FuncMap, Delims: engin.delims}
 		return
 	}
 
-	templ := template.Must(template.New("").Delims(engine.delims.Left, engine.delims.Right).Funcs(engine.FuncMap).ParseGlob(pattern))
-	engine.SetHTMLTemplate(templ)
+	templ := template.Must(template.New("").Delims(engin.delims.Left, engin.delims.Right).Funcs(engin.FuncMap).ParseGlob(pattern))
+	engin.SetHTMLTemplate(templ)
 }
 
-func (engine *Engine) LoadHTMLFiles(files ...string) {
+// LoadHTMLFiles 加载html文件
+func (engin *Engine) LoadHTMLFiles(files ...string) {
 	if IsDebugging() {
-		engine.HTMLRender = render.HTMLDebug{Files: files, FuncMap: engine.FuncMap, Delims: engine.delims}
+		engin.HTMLRender = render.HTMLDebug{Files: files, FuncMap: engin.FuncMap, Delims: engin.delims}
 		return
 	}
 
-	templ := template.Must(template.New("").Delims(engine.delims.Left, engine.delims.Right).Funcs(engine.FuncMap).ParseFiles(files...))
-	engine.SetHTMLTemplate(templ)
+	templ := template.Must(template.New("").Delims(engin.delims.Left, engin.delims.Right).Funcs(engin.FuncMap).ParseFiles(files...))
+	engin.SetHTMLTemplate(templ)
 }
 
-func (engine *Engine) SetHTMLTemplate(templ *template.Template) {
-	if len(engine.trees) > 0 {
+// SetHTMLTemplate 设置html模板
+func (engin *Engine) SetHTMLTemplate(templ *template.Template) {
+	if len(engin.trees) > 0 {
 		debugPrintWARNINGSetHTMLTemplate()
 	}
-
-	engine.HTMLRender = render.HTMLProduction{Template: templ.Funcs(engine.FuncMap)}
+	engin.HTMLRender = render.HTMLProduction{Template: templ.Funcs(engin.FuncMap)}
 }
 
-func (engine *Engine) SetFuncMap(funcMap template.FuncMap) {
-	engine.FuncMap = funcMap
+// SetFuncMap 设置函数表
+func (engin *Engine) SetFuncMap(funcMap template.FuncMap) {
+	engin.FuncMap = funcMap
 }
 
 // NoRoute adds handlers for NoRoute. It return a 404 code by default.
-func (engine *Engine) NoRoute(handlers ...HandlerFunc) {
-	engine.noRoute = handlers
-	engine.rebuild404Handlers()
+func (engin *Engine) NoRoute(handlers ...HandlerFunc) {
+	engin.noRoute = handlers
+	engin.rebuild404Handlers()
 }
 
 // NoMethod sets the handlers called when... TODO.
-func (engine *Engine) NoMethod(handlers ...HandlerFunc) {
-	engine.noMethod = handlers
-	engine.rebuild405Handlers()
+func (engin *Engine) NoMethod(handlers ...HandlerFunc) {
+	engin.noMethod = handlers
+	engin.rebuild405Handlers()
 }
 
 // Use attachs a global middleware to the router. ie. the middleware attached though Use() will be
 // included in the handlers chain for every single request. Even 404, 405, static files...
 // For example, this is the right place for a logger or error management middleware.
-func (engine *Engine) Use(middleware ...HandlerFunc) IRoutes {
-	engine.RouterGroup.Use(middleware...)
-	engine.rebuild404Handlers()
-	engine.rebuild405Handlers()
-	return engine
+func (engin *Engine) Use(middleware ...HandlerFunc) IRoutes {
+	engin.RouterGroup.Use(middleware...)
+	engin.rebuild404Handlers()
+	engin.rebuild405Handlers()
+	return engin
 }
 
-func (engine *Engine) rebuild404Handlers() {
-	engine.allNoRoute = engine.combineHandlers(engine.noRoute)
+func (engin *Engine) rebuild404Handlers() {
+	engin.allNoRoute = engin.combineHandlers(engin.noRoute)
 }
 
-func (engine *Engine) rebuild405Handlers() {
-	engine.allNoMethod = engine.combineHandlers(engine.noMethod)
+func (engin *Engine) rebuild405Handlers() {
+	engin.allNoMethod = engin.combineHandlers(engin.noMethod)
 }
 
 // AddRoute register mentod path with handlers
-func (engine *Engine) AddRoute(method, path string, handlers HandlersChain) {
+func (engin *Engine) AddRoute(method, path string, handlers HandlersChain) {
 	assert1(path[0] == '/', "path must begin with '/'")
 	assert1(len(method) > 0, "HTTP method can not be empty")
 	assert1(len(handlers) > 0, "there must be at least one handler")
 
 	debugPrintRoute(method, path, handlers)
-	root := engine.trees.get(method)
+	root := engin.trees.get(method)
 	if root == nil {
 		root = new(Node)
-		engine.trees = append(engine.trees, MethodTree{method: method, root: root})
+		engin.trees = append(engin.trees, MethodTree{method: method, root: root})
 	}
 	root.AddRoute(path, handlers)
 }
 
 // GetHandlers check has mentod path registed
-func (engine *Engine) GetHandlers(method, path string) HandlersChain {
+func (engin *Engine) GetHandlers(method, path string) HandlersChain {
 	if len(method) <= 0 || len(path) <= 0 || path[0] != '/' {
 		return nil
 	}
-	root := engine.trees.get(method)
+	root := engin.trees.get(method)
 	if root == nil {
 		return nil
 	}
@@ -259,11 +270,11 @@ func (engine *Engine) GetHandlers(method, path string) HandlersChain {
 }
 
 // DelRoute check has mentod path registed
-func (engine *Engine) DelRoute(method, path string, handlers HandlersChain) {
+func (engin *Engine) DelRoute(method, path string, handlers HandlersChain) {
 	if len(method) <= 0 || len(path) <= 0 || path[0] != '/' || len(handlers) <= 0 {
 		return
 	}
-	root := engine.trees.get(method)
+	root := engin.trees.get(method)
 	if root == nil {
 		return
 	}
@@ -272,8 +283,8 @@ func (engine *Engine) DelRoute(method, path string, handlers HandlersChain) {
 
 // Routes returns a slice of registered routes, including some useful information, such as:
 // the http method, path and the handler name.
-func (engine *Engine) Routes() (routes RoutesInfo) {
-	for _, tree := range engine.trees {
+func (engin *Engine) Routes() (routes RoutesInfo) {
+	for _, tree := range engin.trees {
 		routes = iterate("", tree.method, routes, tree.root)
 	}
 	return routes
@@ -297,30 +308,30 @@ func iterate(path, method string, routes RoutesInfo, root *Node) RoutesInfo {
 // Run attaches the router to a http.Server and starts listening and serving HTTP requests.
 // It is a shortcut for http.ListenAndServe(addr, router)
 // Note: this method will block the calling goroutine indefinitely unless an error happens.
-func (engine *Engine) Run(addr ...string) (err error) {
+func (engin *Engine) Run(addr ...string) (err error) {
 	defer func() { debugPrintError(err) }()
 
 	address := resolveAddress(addr)
 	debugPrint("Listening and serving HTTP on %s\n", address)
-	err = http.ListenAndServe(address, engine)
+	err = http.ListenAndServe(address, engin)
 	return
 }
 
 // RunTLS attaches the router to a http.Server and starts listening and serving HTTPS (secure) requests.
 // It is a shortcut for http.ListenAndServeTLS(addr, certFile, keyFile, router)
 // Note: this method will block the calling goroutine indefinitely unless an error happens.
-func (engine *Engine) RunTLS(addr, certFile, keyFile string) (err error) {
+func (engin *Engine) RunTLS(addr, certFile, keyFile string) (err error) {
 	debugPrint("Listening and serving HTTPS on %s\n", addr)
 	defer func() { debugPrintError(err) }()
 
-	err = http.ListenAndServeTLS(addr, certFile, keyFile, engine)
+	err = http.ListenAndServeTLS(addr, certFile, keyFile, engin)
 	return
 }
 
 // RunUnix attaches the router to a http.Server and starts listening and serving HTTP requests
 // through the specified unix socket (ie. a file).
 // Note: this method will block the calling goroutine indefinitely unless an error happens.
-func (engine *Engine) RunUnix(file string) (err error) {
+func (engin *Engine) RunUnix(file string) (err error) {
 	debugPrint("Listening and serving HTTP on unix:/%s", file)
 	defer func() { debugPrintError(err) }()
 
@@ -330,42 +341,41 @@ func (engine *Engine) RunUnix(file string) (err error) {
 		return
 	}
 	defer listener.Close()
-	err = http.Serve(listener, engine)
+	err = http.Serve(listener, engin)
 	return
 }
 
 // ServeHTTP conforms to the http.Handler interface.
-func (engine *Engine) ServeHTTP(w http.ResponseWriter, req *http.Request) {
-	c := engine.pool.Get().(*Context)
+func (engin *Engine) ServeHTTP(w http.ResponseWriter, req *http.Request) {
+	c := engin.pool.Get().(*Context)
 	c.writermem.reset(w)
 	c.Request = req
 	c.reset()
 
-	engine.handleHTTPRequest(c)
-
-	engine.pool.Put(c)
+	engin.handleHTTPRequest(c)
+	engin.pool.Put(c)
 }
 
 // HandleContext re-enter a context that has been rewritten.
 // This can be done by setting c.Request.Path to your new target.
 // Disclaimer: You can loop yourself to death with this, use wisely.
-func (engine *Engine) HandleContext(c *Context) {
+func (engin *Engine) HandleContext(c *Context) {
 	c.reset()
-	engine.handleHTTPRequest(c)
-	engine.pool.Put(c)
+	engin.handleHTTPRequest(c)
+	engin.pool.Put(c)
 }
 
-func (engine *Engine) handleHTTPRequest(context *Context) {
+func (engin *Engine) handleHTTPRequest(context *Context) {
 	httpMethod := context.Request.Method
 	path := context.Request.URL.Path
 	unescape := false
-	if engine.UseRawPath && len(context.Request.URL.RawPath) > 0 {
+	if engin.UseRawPath && len(context.Request.URL.RawPath) > 0 {
 		path = context.Request.URL.RawPath
-		unescape = engine.UnescapePathValues
+		unescape = engin.UnescapePathValues
 	}
 
 	// Find root of the tree for the given HTTP method
-	t := engine.trees
+	t := engin.trees
 	for i, tl := 0, len(t); i < tl; i++ {
 		if t[i].method == httpMethod {
 			root := t[i].root
@@ -379,11 +389,11 @@ func (engine *Engine) handleHTTPRequest(context *Context) {
 				return
 			}
 			if httpMethod != "CONNECT" && path != "/" {
-				if tsr && engine.RedirectTrailingSlash {
+				if tsr && engin.RedirectTrailingSlash {
 					redirectTrailingSlash(context)
 					return
 				}
-				if engine.RedirectFixedPath && redirectFixedPath(context, root, engine.RedirectFixedPath) {
+				if engin.RedirectFixedPath && redirectFixedPath(context, root, engin.RedirectFixedPath) {
 					return
 				}
 			}
@@ -391,33 +401,33 @@ func (engine *Engine) handleHTTPRequest(context *Context) {
 		}
 	}
 
-	if engine.HandleMethodNotAllowed {
-		for _, tree := range engine.trees {
+	if engin.HandleMethodNotAllowed {
+		for _, tree := range engin.trees {
 			if tree.method != httpMethod {
 				if handlers, _, _ := tree.root.getValue(path, nil, unescape); handlers != nil {
-					context.handlers = engine.allNoMethod
+					context.handlers = engin.allNoMethod
 					serveError(context, 405, default405Body)
 					return
 				}
 			}
 		}
 	}
-	context.handlers = engine.allNoRoute
+	context.handlers = engin.allNoRoute
 	serveError(context, 404, default404Body)
 }
 
-func (engine *Engine) markRoute(path string, group bool) {
+func (engin *Engine) markRoute(path string, group bool) {
 	if len(path) > 0 {
 		if group == true {
-			engine.groupRouter = append(engine.groupRouter, fmt.Sprintf("^~ %s", path))
+			engin.groupRouter = append(engin.groupRouter, fmt.Sprintf("^~ %s", path))
 		} else {
-			engine.groupRouter = append(engine.groupRouter, path)
+			engin.groupRouter = append(engin.groupRouter, path)
 		}
 	}
 }
 
-func (engine *Engine) getGroupRoute() *[]string {
-	return &engine.groupRouter
+func (engin *Engine) getGroupRoute() *[]string {
+	return &engin.groupRouter
 }
 
 var mimePlain = []string{MIMEPlain}

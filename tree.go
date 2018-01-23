@@ -41,11 +41,13 @@ func (ps Params) ByName(name string) (va string) {
 	return
 }
 
+// MethodTree 方法树
 type MethodTree struct {
 	method string
 	root   *Node
 }
 
+// MethodTrees 方法树数组
 type MethodTrees []MethodTree
 
 func (trees MethodTrees) get(method string) *Node {
@@ -57,6 +59,7 @@ func (trees MethodTrees) get(method string) *Node {
 	return nil
 }
 
+// Get 获取数据
 func (trees MethodTrees) Get(method string) *Node {
 	return trees.get(method)
 }
@@ -91,6 +94,7 @@ const (
 	catchAll
 )
 
+// Node 节点
 type Node struct {
 	path      string
 	wildChild bool
@@ -102,6 +106,7 @@ type Node struct {
 	priority  uint32
 }
 
+// NodeChain 节点数组
 type NodeChain []*Node
 
 // GetPath get member path

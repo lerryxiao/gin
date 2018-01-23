@@ -646,7 +646,7 @@ func TestContextRenderSecureJSON(t *testing.T) {
 	w := httptest.NewRecorder()
 	c, router := CreateTestContext(w)
 
-	router.SecureJsonPrefix("&&&START&&&")
+	router.SecureJSONPrefix("&&&START&&&")
 	c.SecureJSON(201, []string{"foo", "bar"})
 
 	assert.Equal(t, w.Code, 201)
