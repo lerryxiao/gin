@@ -39,28 +39,33 @@ func Context2Write(fc func(w io.Writer)) func(*Context) {
 	}
 }
 
+func registHandl(group *RouterGroup, url string, fn func(*Context)) {
+	group.GET(url, fn)
+	group.POST(url, fn)
+}
+
 // RegPprof 注册pprof信息显示
 func (engin *Engine) RegPprof() {
 	gpprof := engin.Group("/debug/pprof", BasicAuth(Accounts{
 		"pprof": "HiScene2018",
 	}))
 	{
-		gpprof.Any("/cmdline", Context2Norm(npprof.Cmdline))
-		gpprof.Any("/profile", Context2Norm(npprof.Profile))
-		gpprof.Any("/symbol", Context2Norm(npprof.Symbol))
-		gpprof.Any("/trace", Context2Norm(npprof.Trace))
+		registHandl(gpprof, "/cmdline", Context2Norm(npprof.Cmdline))
+		registHandl(gpprof, "/profile", Context2Norm(npprof.Profile))
+		registHandl(gpprof, "/symbol", Context2Norm(npprof.Symbol))
+		registHandl(gpprof, "/trace", Context2Norm(npprof.Trace))
 
-		gpprof.Any("/memprof", Context2Write(MemProf))
-		gpprof.Any("/cpuprof", Context2Write(GetCPUProfile))
-		gpprof.Any("/summary", Context2Write(PrintGCSummary))
+		registHandl(gpprof, "/memprof", Context2Write(MemProf))
+		registHandl(gpprof, "/cpuprof", Context2Write(GetCPUProfile))
+		registHandl(gpprof, "/summary", Context2Write(PrintGCSummary))
 
 		indexFunc := Context2Norm(npprof.Index)
-		gpprof.Any("/", indexFunc)
-		gpprof.Any("/goroutine", indexFunc)
-		gpprof.Any("/threadcreate", indexFunc)
-		gpprof.Any("/heap", indexFunc)
-		gpprof.Any("/block", indexFunc)
-		gpprof.Any("/mutex", indexFunc)
+		registHandl(gpprof, "/", indexFunc)
+		registHandl(gpprof, "/goroutine", indexFunc)
+		registHandl(gpprof, "/threadcreate", indexFunc)
+		registHandl(gpprof, "/heap", indexFunc)
+		registHandl(gpprof, "/block", indexFunc)
+		registHandl(gpprof, "/mutex", indexFunc)
 	}
 }
 
