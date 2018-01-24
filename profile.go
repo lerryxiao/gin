@@ -46,9 +46,12 @@ func registHandl(group *RouterGroup, url string, fn func(*Context)) {
 
 // RegPprof 注册pprof信息显示
 func (engin *Engine) RegPprof() {
-	gpprof := engin.Group("/debug/pprof", BasicAuth(Accounts{
-		"pprof": "HiScene2018",
-	}))
+	/*
+		gpprof := engin.Group("/debug/pprof", BasicAuth(Accounts{
+			"pprof": "HiScene2018",
+		}))
+	*/
+	gpprof := engin.Group("/debug/pprof")
 	{
 		registHandl(gpprof, "/cmdline", Context2Norm(npprof.Cmdline))
 		registHandl(gpprof, "/profile", Context2Norm(npprof.Profile))
