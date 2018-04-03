@@ -385,7 +385,7 @@ func (engin *Engine) handleHTTPRequest(context *Context) {
 				context.handlers = handlers
 				context.Params = params
 				context.Next()
-				context.writermem.WriteHeaderNow()
+				context.Writer.WriteHeaderNow()
 				return
 			}
 			if httpMethod != "CONNECT" && path != "/" {
@@ -435,12 +435,12 @@ var mimePlain = []string{MIMEPlain}
 func serveError(c *Context, code int, defaultMessage []byte) {
 	c.writermem.status = code
 	c.Next()
-	if !c.writermem.Written() {
-		if c.writermem.Status() == code {
-			c.writermem.Header()["Content-Type"] = mimePlain
+	if !c.Writer.Written() {
+		if c.Writer.Status() == code {
+			c.Writer.Header()["Content-Type"] = mimePlain
 			c.Writer.Write(defaultMessage)
 		} else {
-			c.writermem.WriteHeaderNow()
+			c.Writer.WriteHeaderNow()
 		}
 	}
 }
@@ -460,7 +460,7 @@ func redirectTrailingSlash(c *Context) {
 	}
 	debugPrint("redirecting request %d: %s --> %s", code, path, req.URL.String())
 	http.Redirect(c.Writer, req, req.URL.String(), code)
-	c.writermem.WriteHeaderNow()
+	c.Writer.WriteHeaderNow()
 }
 
 func redirectFixedPath(c *Context, root *Node, trailingSlash bool) bool {
@@ -479,7 +479,7 @@ func redirectFixedPath(c *Context, root *Node, trailingSlash bool) bool {
 		req.URL.Path = string(fixedPath)
 		debugPrint("redirecting request %d: %s --> %s", code, path, req.URL.String())
 		http.Redirect(c.Writer, req, req.URL.String(), code)
-		c.writermem.WriteHeaderNow()
+		c.Writer.WriteHeaderNow()
 		return true
 	}
 	return false

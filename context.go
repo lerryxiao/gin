@@ -58,6 +58,9 @@ type Context struct {
 
 	// Accepted defines a list of manually accepted formats for content negotiation.
 	Accepted []string
+
+	// Err400to200 400错误转200
+	Err400to200 bool
 }
 
 /************************************/
@@ -72,6 +75,7 @@ func (c *Context) reset() {
 	c.Keys = nil
 	c.Errors = c.Errors[0:0]
 	c.Accepted = nil
+	c.Err400to200 = true
 }
 
 // Copy returns a copy of the current context that can be safely used outside the request's scope.
@@ -94,6 +98,11 @@ func (c *Context) HandlerName() string {
 // Handler returns the main handler.
 func (c *Context) Handler() HandlerFunc {
 	return c.handlers.Last()
+}
+
+// StatusError2OK 返回码400改为200
+func (c *Context) StatusError2OK(ok bool) {
+	c.Err400to200 = ok
 }
 
 /************************************/
@@ -476,9 +485,12 @@ func (c *Context) BindQuery(obj interface{}) error {
 // See the binding package.
 func (c *Context) MustBindWith(obj interface{}, b binding.Binding) (err error) {
 	if err = c.ShouldBindWith(obj, b); err != nil {
-		c.AbortWithError(400, err).SetType(ErrorTypeBind)
+		if c.Err400to200 {
+			c.AbortWithError(http.StatusOK, err).SetType(ErrorTypeBind)
+		} else {
+			c.AbortWithError(http.StatusBadRequest, err).SetType(ErrorTypeBind)
+		}
 	}
-
 	return
 }
 
@@ -558,7 +570,7 @@ func bodyAllowedForStatus(status int) bool {
 
 // Status sets the HTTP response code.
 func (c *Context) Status(code int) {
-	c.writermem.WriteHeader(code)
+	c.Writer.WriteHeader(code)
 }
 
 // Header is a intelligent shortcut for c.Writer.Header().Set(key, value).
