@@ -11,13 +11,13 @@ import (
 	"strings"
 )
 
-// IRouter 路由
+// IRouter defines all router handle interface includes single and group router.
 type IRouter interface {
 	IRoutes
 	Group(string, ...HandlerFunc) *RouterGroup
 }
 
-// IRoutes 路由组
+// IRoutes defines all router handle interface.
 type IRoutes interface {
 	Use(...HandlerFunc) IRoutes
 
@@ -53,8 +53,8 @@ func initRouter() {
 	}
 }
 
-// RouterGroup is used internally to configure router, a RouterGroup is associated with a prefix
-// and an array of handlers (middleware).
+// RouterGroup is used internally to configure router, a RouterGroup is associated with
+// a prefix and an array of handlers (middleware).
 type RouterGroup struct {
 	Handlers  HandlersChain
 	basePath  string
@@ -72,8 +72,8 @@ func (group *RouterGroup) Use(middleware ...HandlerFunc) IRoutes {
 	return group.returnObj()
 }
 
-// Group creates a new router group. You should add all the routes that have common middlwares or the same path prefix.
-// For example, all the routes that use a common middlware for authorization could be grouped.
+// Group creates a new router group. You should add all the routes that have common middlewares or the same path prefix.
+// For example, all the routes that use a common middleware for authorization could be grouped.
 func (group *RouterGroup) Group(relativePath string, handlers ...HandlerFunc) *RouterGroup {
 	absolutePath := group.calculateAbsolutePath(relativePath)
 	if absolutePath == group.basePath {
@@ -89,14 +89,15 @@ func (group *RouterGroup) Group(relativePath string, handlers ...HandlerFunc) *R
 	}
 	return &RouterGroup{
 		Handlers:  group.combineHandlers(handlers),
-		basePath:  absolutePath,
+		basePath:  group.calculateAbsolutePath(relativePath),
 		engine:    group.engine,
 		routers:   make([]string, 0),
 		hasrouter: false,
 	}
 }
 
-// BasePath 基础目录
+// BasePath returns the base path of router group.
+// For example, if v := router.Group("/rest/n/v1/api"), v.BasePath() is "/rest/n/v1/api".
 func (group *RouterGroup) BasePath() string {
 	return group.basePath
 }
@@ -188,7 +189,7 @@ func (group *RouterGroup) Del(method, relativePath string, handlers ...HandlerFu
 	return group.returnObj()
 }
 
-// StaticFile registers a single route in order to server a single file of the local filesystem.
+// StaticFile registers a single route in order to serve a single file of the local filesystem.
 // router.StaticFile("favicon.ico", "./resources/favicon.ico")
 func (group *RouterGroup) StaticFile(relativePath, filepath string) IRoutes {
 	if strings.Contains(relativePath, ":") || strings.Contains(relativePath, "*") {
@@ -230,11 +231,22 @@ func (group *RouterGroup) StaticFS(relativePath string, fs http.FileSystem) IRou
 func (group *RouterGroup) createStaticHandler(relativePath string, fs http.FileSystem) HandlerFunc {
 	absolutePath := group.calculateAbsolutePath(relativePath)
 	fileServer := http.StripPrefix(absolutePath, http.FileServer(fs))
-	_, nolisting := fs.(*onlyfilesFS)
+
 	return func(c *Context) {
-		if nolisting {
-			c.Writer.WriteHeader(404)
+		if _, nolisting := fs.(*onlyfilesFS); nolisting {
+			c.Writer.WriteHeader(http.StatusNotFound)
 		}
+
+		file := c.Param("filepath")
+		// Check if file exists and/or if we have permission to access it
+		if _, err := fs.Open(file); err != nil {
+			c.Writer.WriteHeader(http.StatusNotFound)
+			c.handlers = group.engine.allNoRoute
+			// Reset index
+			c.index = -1
+			return
+		}
+
 		fileServer.ServeHTTP(c.Writer, c.Request)
 	}
 }

@@ -41,14 +41,13 @@ func (ps Params) ByName(name string) (va string) {
 	return
 }
 
-// MethodTree 方法树
-type MethodTree struct {
+type methodTree struct {
 	method string
 	root   *Node
 }
 
-// MethodTrees 方法树数组
-type MethodTrees []MethodTree
+// MethodTrees 方法树
+type MethodTrees []methodTree
 
 func (trees MethodTrees) get(method string) *Node {
 	for _, tree := range trees {
@@ -97,13 +96,13 @@ const (
 // Node 节点
 type Node struct {
 	path      string
-	wildChild bool
-	nType     nodeType
-	maxParams uint8
 	indices   string
 	children  []*Node
 	handlers  HandlersChain
 	priority  uint32
+	nType     nodeType
+	maxParams uint8
+	wildChild bool
 }
 
 // NodeChain 节点数组
@@ -138,9 +137,9 @@ func (n *Node) incrementChildPrio(pos int) int {
 	return newPos
 }
 
-// AddRoute adds a node with the given handle to the path.
+// addRoute adds a node with the given handle to the path.
 // Not concurrency-safe!
-func (n *Node) AddRoute(path string, handlers HandlersChain) {
+func (n *Node) addRoute(path string, handlers HandlersChain) {
 	fullPath := path
 	n.priority++
 	numParams := countParams(path)
@@ -211,9 +210,16 @@ func (n *Node) AddRoute(path string, handlers HandlersChain) {
 						}
 					}
 
-					panic("path segment '" + path +
+					pathSeg := path
+					if n.nType != catchAll {
+						pathSeg = strings.SplitN(path, "/", 2)[0]
+					}
+					prefix := fullPath[:strings.Index(fullPath, pathSeg)] + n.path
+					panic("'" + pathSeg +
+						"' in new path '" + fullPath +
 						"' conflicts with existing wildcard '" + n.path +
-						"' in path '" + fullPath + "'")
+						"' in existing prefix '" + prefix +
+						"'")
 				}
 
 				c := path[0]
@@ -250,7 +256,7 @@ func (n *Node) AddRoute(path string, handlers HandlersChain) {
 
 			} else if i == len(path) { // Make node a (in-path) leaf
 				if n.handlers != nil {
-					panic("handlers are already registered for path ''" + fullPath + "'")
+					panic("handlers are already registered for path '" + fullPath + "'")
 				}
 				n.handlers = handlers
 			}
@@ -335,7 +341,7 @@ func (n *Node) DelRoute(path string, handlers HandlersChain) {
 func (n *Node) insertChild(numParams uint8, path string, fullPath string, handlers HandlersChain) {
 	var offset int // already handled bytes of the path
 
-	// find prefix until first wildcard (beginning with ':'' or '*'')
+	// find prefix until first wildcard (beginning with ':' or '*')
 	for i, max := 0, len(path); numParams > 0; i++ {
 		c := path[i]
 		if c != ':' && c != '*' {
@@ -415,7 +421,7 @@ func (n *Node) insertChild(numParams uint8, path string, fullPath string, handle
 
 			n.path = path[offset:i]
 
-			// first node: catchAll Node with empty path
+			// first node: catchAll node with empty path
 			child := &Node{
 				wildChild: true,
 				nType:     catchAll,
@@ -472,7 +478,7 @@ walk: // Outer loop for walking the tree
 					// Nothing found.
 					// We can recommend to redirect to the same URL without a
 					// trailing slash if a leaf exists for that path.
-					tsr = (path == "/" && n.handlers != nil)
+					tsr = path == "/" && n.handlers != nil
 					return
 				}
 
@@ -512,7 +518,7 @@ walk: // Outer loop for walking the tree
 						}
 
 						// ... but we can't
-						tsr = (len(path) == end+1)
+						tsr = len(path) == end+1
 						return
 					}
 
@@ -523,7 +529,7 @@ walk: // Outer loop for walking the tree
 						// No handle found. Check if a handle for this path + a
 						// trailing slash exists for TSR recommendation
 						n = n.children[0]
-						tsr = (n.path == "/" && n.handlers != nil)
+						tsr = n.path == "/" && n.handlers != nil
 					}
 
 					return
@@ -618,7 +624,7 @@ func (n *Node) findCaseInsensitivePath(path string, fixTrailingSlash bool) (ciPa
 
 				// Nothing found. We can recommend to redirect to the same URL
 				// without a trailing slash if a leaf exists for that path
-				found = (fixTrailingSlash && path == "/" && n.handlers != nil)
+				found = fixTrailingSlash && path == "/" && n.handlers != nil
 				return
 			}
 

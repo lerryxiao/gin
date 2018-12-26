@@ -285,6 +285,67 @@ var githubAPI = []route{
 	{"DELETE", "/user/keys/:id"},
 }
 
+func TestShouldBindURI(t *testing.T) {
+	DefaultWriter = os.Stdout
+	router := Default()
+
+	type Person struct {
+		Name string `uri:"name" binding:"required"`
+		ID   string `uri:"id" binding:"required"`
+	}
+	router.Handle("GET", "/rest/:name/:id", func(c *Context) {
+		var person Person
+		assert.NoError(t, c.ShouldBindURI(&person))
+		assert.True(t, "" != person.Name)
+		assert.True(t, "" != person.ID)
+		c.String(http.StatusOK, "ShouldBindURI test OK")
+	})
+
+	path, _ := exampleFromPath("/rest/:name/:id")
+	w := performRequest(router, "GET", path)
+	assert.Equal(t, "ShouldBindURI test OK", w.Body.String())
+	assert.Equal(t, http.StatusOK, w.Code)
+}
+
+func TestBindURI(t *testing.T) {
+	DefaultWriter = os.Stdout
+	router := Default()
+
+	type Person struct {
+		Name string `uri:"name" binding:"required"`
+		ID   string `uri:"id" binding:"required"`
+	}
+	router.Handle("GET", "/rest/:name/:id", func(c *Context) {
+		var person Person
+		assert.NoError(t, c.BindURI(&person))
+		assert.True(t, "" != person.Name)
+		assert.True(t, "" != person.ID)
+		c.String(http.StatusOK, "BindURI test OK")
+	})
+
+	path, _ := exampleFromPath("/rest/:name/:id")
+	w := performRequest(router, "GET", path)
+	assert.Equal(t, "BindURI test OK", w.Body.String())
+	assert.Equal(t, http.StatusOK, w.Code)
+}
+
+func TestBindURIError(t *testing.T) {
+	DefaultWriter = os.Stdout
+	router := Default()
+
+	type Member struct {
+		Number string `uri:"num" binding:"required,uuid"`
+	}
+	router.Handle("GET", "/new/rest/:num", func(c *Context) {
+		var m Member
+		c.BindURI(&m)
+	})
+
+	path1, _ := exampleFromPath("/new/rest/:num")
+	w1 := performRequest(router, "GET", path1)
+	assert.Equal(t, http.StatusBadRequest, w1.Code)
+}
+
 func githubConfigRouter(router *Engine) {
 	for _, route := range githubAPI {
 		router.Handle(route.method, route.path, func(c *Context) {
@@ -293,7 +354,7 @@ func githubConfigRouter(router *Engine) {
 			for _, param := range c.Params {
 				output[param.Key] = param.Value
 			}
-			c.JSON(200, output)
+			c.JSON(http.StatusOK, output)
 		})
 	}
 }

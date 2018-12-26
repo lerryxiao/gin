@@ -5,10 +5,12 @@
 package gin
 
 import (
+	"crypto/tls"
 	"fmt"
 	"html/template"
 	"io/ioutil"
 	"net/http"
+	"net/http/httptest"
 	"reflect"
 	"testing"
 	"time"
@@ -21,84 +23,140 @@ func formatAsDate(t time.Time) string {
 	return fmt.Sprintf("%d/%02d/%02d", year, month, day)
 }
 
-func setupHTMLFiles(t *testing.T) func() {
-	go func() {
-		SetMode(TestMode)
-		router := New()
-		router.Delims("{[{", "}]}")
-		router.SetFuncMap(template.FuncMap{
-			"formatAsDate": formatAsDate,
+func setupHTMLFiles(t *testing.T, mode string, tls bool, loadMethod func(*Engine)) *httptest.Server {
+	SetMode(mode)
+	router := New()
+	router.Delims("{[{", "}]}")
+	router.SetFuncMap(template.FuncMap{
+		"formatAsDate": formatAsDate,
+	})
+	loadMethod(router)
+	router.GET("/test", func(c *Context) {
+		c.HTML(http.StatusOK, "hello.tmpl", map[string]string{"name": "world"})
+	})
+	router.GET("/raw", func(c *Context) {
+		c.HTML(http.StatusOK, "raw.tmpl", map[string]interface{}{
+			"now": time.Date(2017, 07, 01, 0, 0, 0, 0, time.UTC),
 		})
-		router.LoadHTMLFiles("./fixtures/basic/hello.tmpl", "./fixtures/basic/raw.tmpl")
-		router.GET("/test", func(c *Context) {
-			c.HTML(http.StatusOK, "hello.tmpl", map[string]string{"name": "world"})
-		})
-		router.GET("/raw", func(c *Context) {
-			c.HTML(http.StatusOK, "raw.tmpl", map[string]interface{}{
-				"now": time.Date(2017, 07, 01, 0, 0, 0, 0, time.UTC),
-			})
-		})
-		router.Run(":8888")
-	}()
-	t.Log("waiting 1 second for server startup")
-	time.Sleep(1 * time.Second)
-	return func() {}
+	})
+
+	var ts *httptest.Server
+
+	if tls {
+		ts = httptest.NewTLSServer(router)
+	} else {
+		ts = httptest.NewServer(router)
+	}
+
+	return ts
 }
 
-func setupHTMLGlob(t *testing.T) func() {
-	go func() {
-		SetMode(DebugMode)
-		router := New()
-		router.Delims("{[{", "}]}")
-		router.SetFuncMap(template.FuncMap{
-			"formatAsDate": formatAsDate,
-		})
-		router.LoadHTMLGlob("./fixtures/basic/*")
-		router.GET("/test", func(c *Context) {
-			c.HTML(http.StatusOK, "hello.tmpl", map[string]string{"name": "world"})
-		})
-		router.GET("/raw", func(c *Context) {
-			c.HTML(http.StatusOK, "raw.tmpl", map[string]interface{}{
-				"now": time.Date(2017, 07, 01, 0, 0, 0, 0, time.UTC),
-			})
-		})
-		router.Run(":8888")
-	}()
-	t.Log("waiting 1 second for server startup")
-	time.Sleep(1 * time.Second)
-	return func() {}
-}
+func TestLoadHTMLGlobDebugMode(t *testing.T) {
+	ts := setupHTMLFiles(
+		t,
+		DebugMode,
+		false,
+		func(router *Engine) {
+			router.LoadHTMLGlob("./testdata/template/*")
+		},
+	)
+	defer ts.Close()
 
-//TODO
-func TestLoadHTMLGlob(t *testing.T) {
-	td := setupHTMLGlob(t)
-	res, err := http.Get("http://127.0.0.1:8888/test")
+	res, err := http.Get(fmt.Sprintf("%s/test", ts.URL))
 	if err != nil {
 		fmt.Println(err)
 	}
 
 	resp, _ := ioutil.ReadAll(res.Body)
-	assert.Equal(t, "<h1>Hello world</h1>", string(resp[:]))
+	assert.Equal(t, "<h1>Hello world</h1>", string(resp))
+}
 
-	td()
+func TestLoadHTMLGlobTestMode(t *testing.T) {
+	ts := setupHTMLFiles(
+		t,
+		TestMode,
+		false,
+		func(router *Engine) {
+			router.LoadHTMLGlob("./testdata/template/*")
+		},
+	)
+	defer ts.Close()
+
+	res, err := http.Get(fmt.Sprintf("%s/test", ts.URL))
+	if err != nil {
+		fmt.Println(err)
+	}
+
+	resp, _ := ioutil.ReadAll(res.Body)
+	assert.Equal(t, "<h1>Hello world</h1>", string(resp))
+}
+
+func TestLoadHTMLGlobReleaseMode(t *testing.T) {
+	ts := setupHTMLFiles(
+		t,
+		ReleaseMode,
+		false,
+		func(router *Engine) {
+			router.LoadHTMLGlob("./testdata/template/*")
+		},
+	)
+	defer ts.Close()
+
+	res, err := http.Get(fmt.Sprintf("%s/test", ts.URL))
+	if err != nil {
+		fmt.Println(err)
+	}
+
+	resp, _ := ioutil.ReadAll(res.Body)
+	assert.Equal(t, "<h1>Hello world</h1>", string(resp))
+}
+
+func TestLoadHTMLGlobUsingTLS(t *testing.T) {
+	ts := setupHTMLFiles(
+		t,
+		DebugMode,
+		true,
+		func(router *Engine) {
+			router.LoadHTMLGlob("./testdata/template/*")
+		},
+	)
+	defer ts.Close()
+
+	// Use InsecureSkipVerify for avoiding `x509: certificate signed by unknown authority` error
+	tr := &http.Transport{
+		TLSClientConfig: &tls.Config{
+			InsecureSkipVerify: true,
+		},
+	}
+	client := &http.Client{Transport: tr}
+	res, err := client.Get(fmt.Sprintf("%s/test", ts.URL))
+	if err != nil {
+		fmt.Println(err)
+	}
+
+	resp, _ := ioutil.ReadAll(res.Body)
+	assert.Equal(t, "<h1>Hello world</h1>", string(resp))
 }
 
 func TestLoadHTMLGlobFromFuncMap(t *testing.T) {
-	time.Now()
-	td := setupHTMLGlob(t)
-	res, err := http.Get("http://127.0.0.1:8888/raw")
+	ts := setupHTMLFiles(
+		t,
+		DebugMode,
+		false,
+		func(router *Engine) {
+			router.LoadHTMLGlob("./testdata/template/*")
+		},
+	)
+	defer ts.Close()
+
+	res, err := http.Get(fmt.Sprintf("%s/raw", ts.URL))
 	if err != nil {
 		fmt.Println(err)
 	}
 
 	resp, _ := ioutil.ReadAll(res.Body)
-	assert.Equal(t, "Date: 2017/07/01\n", string(resp[:]))
-
-	td()
+	assert.Equal(t, "Date: 2017/07/01\n", string(resp))
 }
-
-// func (engine *Engine) LoadHTMLFiles(files ...string) {
-// func (engine *Engine) RunTLS(addr string, cert string, key string) error {
 
 func init() {
 	SetMode(TestMode)
@@ -111,49 +169,111 @@ func TestCreateEngine(t *testing.T) {
 	assert.Empty(t, router.Handlers)
 }
 
-// func TestLoadHTMLDebugMode(t *testing.T) {
-// 	router := New()
-// 	SetMode(DebugMode)
-// 	router.LoadHTMLGlob("*.testtmpl")
-// 	r := router.HTMLRender.(render.HTMLDebug)
-// 	assert.Empty(t, r.Files)
-// 	assert.Equal(t, r.Glob, "*.testtmpl")
-//
-// 	router.LoadHTMLFiles("index.html.testtmpl", "login.html.testtmpl")
-// 	r = router.HTMLRender.(render.HTMLDebug)
-// 	assert.Empty(t, r.Glob)
-// 	assert.Equal(t, r.Files, []string{"index.html", "login.html"})
-// 	SetMode(TestMode)
-// }
+func TestLoadHTMLFilesTestMode(t *testing.T) {
+	ts := setupHTMLFiles(
+		t,
+		TestMode,
+		false,
+		func(router *Engine) {
+			router.LoadHTMLFiles("./testdata/template/hello.tmpl", "./testdata/template/raw.tmpl")
+		},
+	)
+	defer ts.Close()
 
-func TestLoadHTMLFiles(t *testing.T) {
-	td := setupHTMLFiles(t)
-	res, err := http.Get("http://127.0.0.1:8888/test")
+	res, err := http.Get(fmt.Sprintf("%s/test", ts.URL))
 	if err != nil {
 		fmt.Println(err)
 	}
 
 	resp, _ := ioutil.ReadAll(res.Body)
-	assert.Equal(t, "<h1>Hello world</h1>", string(resp[:]))
-	td()
+	assert.Equal(t, "<h1>Hello world</h1>", string(resp))
+}
+
+func TestLoadHTMLFilesDebugMode(t *testing.T) {
+	ts := setupHTMLFiles(
+		t,
+		DebugMode,
+		false,
+		func(router *Engine) {
+			router.LoadHTMLFiles("./testdata/template/hello.tmpl", "./testdata/template/raw.tmpl")
+		},
+	)
+	defer ts.Close()
+
+	res, err := http.Get(fmt.Sprintf("%s/test", ts.URL))
+	if err != nil {
+		fmt.Println(err)
+	}
+
+	resp, _ := ioutil.ReadAll(res.Body)
+	assert.Equal(t, "<h1>Hello world</h1>", string(resp))
+}
+
+func TestLoadHTMLFilesReleaseMode(t *testing.T) {
+	ts := setupHTMLFiles(
+		t,
+		ReleaseMode,
+		false,
+		func(router *Engine) {
+			router.LoadHTMLFiles("./testdata/template/hello.tmpl", "./testdata/template/raw.tmpl")
+		},
+	)
+	defer ts.Close()
+
+	res, err := http.Get(fmt.Sprintf("%s/test", ts.URL))
+	if err != nil {
+		fmt.Println(err)
+	}
+
+	resp, _ := ioutil.ReadAll(res.Body)
+	assert.Equal(t, "<h1>Hello world</h1>", string(resp))
+}
+
+func TestLoadHTMLFilesUsingTLS(t *testing.T) {
+	ts := setupHTMLFiles(
+		t,
+		TestMode,
+		true,
+		func(router *Engine) {
+			router.LoadHTMLFiles("./testdata/template/hello.tmpl", "./testdata/template/raw.tmpl")
+		},
+	)
+	defer ts.Close()
+
+	// Use InsecureSkipVerify for avoiding `x509: certificate signed by unknown authority` error
+	tr := &http.Transport{
+		TLSClientConfig: &tls.Config{
+			InsecureSkipVerify: true,
+		},
+	}
+	client := &http.Client{Transport: tr}
+	res, err := client.Get(fmt.Sprintf("%s/test", ts.URL))
+	if err != nil {
+		fmt.Println(err)
+	}
+
+	resp, _ := ioutil.ReadAll(res.Body)
+	assert.Equal(t, "<h1>Hello world</h1>", string(resp))
 }
 
 func TestLoadHTMLFilesFuncMap(t *testing.T) {
-	time.Now()
-	td := setupHTMLFiles(t)
-	res, err := http.Get("http://127.0.0.1:8888/raw")
+	ts := setupHTMLFiles(
+		t,
+		TestMode,
+		false,
+		func(router *Engine) {
+			router.LoadHTMLFiles("./testdata/template/hello.tmpl", "./testdata/template/raw.tmpl")
+		},
+	)
+	defer ts.Close()
+
+	res, err := http.Get(fmt.Sprintf("%s/raw", ts.URL))
 	if err != nil {
 		fmt.Println(err)
 	}
 
 	resp, _ := ioutil.ReadAll(res.Body)
-	assert.Equal(t, "Date: 2017/07/01\n", string(resp[:]))
-
-	td()
-}
-
-func TestLoadHTMLReleaseMode(t *testing.T) {
-
+	assert.Equal(t, "Date: 2017/07/01\n", string(resp))
 }
 
 func TestAddRoute(t *testing.T) {

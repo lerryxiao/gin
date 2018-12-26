@@ -7,21 +7,12 @@ package gin
 import (
 	"fmt"
 	"reflect"
+	"regexp"
 	"strings"
 	"testing"
 )
 
-func printChildren(n *Node, prefix string) {
-	fmt.Printf(" %02d:%02d %s%s[%d] %v %t %d \r\n", n.priority, n.maxParams, prefix, n.path, len(n.children), n.handlers, n.wildChild, n.nType)
-	for l := len(n.path); l > 0; l-- {
-		prefix += " "
-	}
-	for _, child := range n.children {
-		printChildren(child, prefix)
-	}
-}
-
-// Used as a workaround since we can't compare functions or their addressses
+// Used as a workaround since we can't compare functions or their addresses
 var fakeHandlerValue string
 
 func fakeHandler(val string) HandlersChain {
@@ -133,10 +124,8 @@ func TestTreeAddAndGet(t *testing.T) {
 		"/β",
 	}
 	for _, route := range routes {
-		tree.AddRoute(route, fakeHandler(route))
+		tree.addRoute(route, fakeHandler(route))
 	}
-
-	//printChildren(tree, "")
 
 	checkRequests(t, tree, testRequests{
 		{"/a", false, "/a", nil},
@@ -176,26 +165,24 @@ func TestTreeWildcard(t *testing.T) {
 		"/info/:user/project/:project",
 	}
 	for _, route := range routes {
-		tree.AddRoute(route, fakeHandler(route))
+		tree.addRoute(route, fakeHandler(route))
 	}
-
-	//printChildren(tree, "")
 
 	checkRequests(t, tree, testRequests{
 		{"/", false, "/", nil},
-		{"/cmd/test/", false, "/cmd/:tool/", Params{Param{"tool", "test"}}},
-		{"/cmd/test", true, "", Params{Param{"tool", "test"}}},
-		{"/cmd/test/3", false, "/cmd/:tool/:sub", Params{Param{"tool", "test"}, Param{"sub", "3"}}},
-		{"/src/", false, "/src/*filepath", Params{Param{"filepath", "/"}}},
-		{"/src/some/file.png", false, "/src/*filepath", Params{Param{"filepath", "/some/file.png"}}},
+		{"/cmd/test/", false, "/cmd/:tool/", Params{Param{Key: "tool", Value: "test"}}},
+		{"/cmd/test", true, "", Params{Param{Key: "tool", Value: "test"}}},
+		{"/cmd/test/3", false, "/cmd/:tool/:sub", Params{Param{Key: "tool", Value: "test"}, Param{Key: "sub", Value: "3"}}},
+		{"/src/", false, "/src/*filepath", Params{Param{Key: "filepath", Value: "/"}}},
+		{"/src/some/file.png", false, "/src/*filepath", Params{Param{Key: "filepath", Value: "/some/file.png"}}},
 		{"/search/", false, "/search/", nil},
-		{"/search/someth!ng+in+ünìcodé", false, "/search/:query", Params{Param{"query", "someth!ng+in+ünìcodé"}}},
-		{"/search/someth!ng+in+ünìcodé/", true, "", Params{Param{"query", "someth!ng+in+ünìcodé"}}},
-		{"/user_gopher", false, "/user_:name", Params{Param{"name", "gopher"}}},
-		{"/user_gopher/about", false, "/user_:name/about", Params{Param{"name", "gopher"}}},
-		{"/files/js/inc/framework.js", false, "/files/:dir/*filepath", Params{Param{"dir", "js"}, Param{"filepath", "/inc/framework.js"}}},
-		{"/info/gordon/public", false, "/info/:user/public", Params{Param{"user", "gordon"}}},
-		{"/info/gordon/project/go", false, "/info/:user/project/:project", Params{Param{"user", "gordon"}, Param{"project", "go"}}},
+		{"/search/someth!ng+in+ünìcodé", false, "/search/:query", Params{Param{Key: "query", Value: "someth!ng+in+ünìcodé"}}},
+		{"/search/someth!ng+in+ünìcodé/", true, "", Params{Param{Key: "query", Value: "someth!ng+in+ünìcodé"}}},
+		{"/user_gopher", false, "/user_:name", Params{Param{Key: "name", Value: "gopher"}}},
+		{"/user_gopher/about", false, "/user_:name/about", Params{Param{Key: "name", Value: "gopher"}}},
+		{"/files/js/inc/framework.js", false, "/files/:dir/*filepath", Params{Param{Key: "dir", Value: "js"}, Param{Key: "filepath", Value: "/inc/framework.js"}}},
+		{"/info/gordon/public", false, "/info/:user/public", Params{Param{Key: "user", Value: "gordon"}}},
+		{"/info/gordon/project/go", false, "/info/:user/project/:project", Params{Param{Key: "user", Value: "gordon"}, Param{Key: "project", Value: "go"}}},
 	})
 
 	checkPriorities(t, tree)
@@ -216,25 +203,24 @@ func TestUnescapeParameters(t *testing.T) {
 		"/info/:user",
 	}
 	for _, route := range routes {
-		tree.AddRoute(route, fakeHandler(route))
+		tree.addRoute(route, fakeHandler(route))
 	}
 
-	//printChildren(tree, "")
 	unescape := true
 	checkRequests(t, tree, testRequests{
 		{"/", false, "/", nil},
-		{"/cmd/test/", false, "/cmd/:tool/", Params{Param{"tool", "test"}}},
-		{"/cmd/test", true, "", Params{Param{"tool", "test"}}},
-		{"/src/some/file.png", false, "/src/*filepath", Params{Param{"filepath", "/some/file.png"}}},
-		{"/src/some/file+test.png", false, "/src/*filepath", Params{Param{"filepath", "/some/file test.png"}}},
-		{"/src/some/file++++%%%%test.png", false, "/src/*filepath", Params{Param{"filepath", "/some/file++++%%%%test.png"}}},
-		{"/src/some/file%2Ftest.png", false, "/src/*filepath", Params{Param{"filepath", "/some/file/test.png"}}},
-		{"/search/someth!ng+in+ünìcodé", false, "/search/:query", Params{Param{"query", "someth!ng in ünìcodé"}}},
-		{"/info/gordon/project/go", false, "/info/:user/project/:project", Params{Param{"user", "gordon"}, Param{"project", "go"}}},
-		{"/info/slash%2Fgordon", false, "/info/:user", Params{Param{"user", "slash/gordon"}}},
-		{"/info/slash%2Fgordon/project/Project%20%231", false, "/info/:user/project/:project", Params{Param{"user", "slash/gordon"}, Param{"project", "Project #1"}}},
-		{"/info/slash%%%%", false, "/info/:user", Params{Param{"user", "slash%%%%"}}},
-		{"/info/slash%%%%2Fgordon/project/Project%%%%20%231", false, "/info/:user/project/:project", Params{Param{"user", "slash%%%%2Fgordon"}, Param{"project", "Project%%%%20%231"}}},
+		{"/cmd/test/", false, "/cmd/:tool/", Params{Param{Key: "tool", Value: "test"}}},
+		{"/cmd/test", true, "", Params{Param{Key: "tool", Value: "test"}}},
+		{"/src/some/file.png", false, "/src/*filepath", Params{Param{Key: "filepath", Value: "/some/file.png"}}},
+		{"/src/some/file+test.png", false, "/src/*filepath", Params{Param{Key: "filepath", Value: "/some/file test.png"}}},
+		{"/src/some/file++++%%%%test.png", false, "/src/*filepath", Params{Param{Key: "filepath", Value: "/some/file++++%%%%test.png"}}},
+		{"/src/some/file%2Ftest.png", false, "/src/*filepath", Params{Param{Key: "filepath", Value: "/some/file/test.png"}}},
+		{"/search/someth!ng+in+ünìcodé", false, "/search/:query", Params{Param{Key: "query", Value: "someth!ng in ünìcodé"}}},
+		{"/info/gordon/project/go", false, "/info/:user/project/:project", Params{Param{Key: "user", Value: "gordon"}, Param{Key: "project", Value: "go"}}},
+		{"/info/slash%2Fgordon", false, "/info/:user", Params{Param{Key: "user", Value: "slash/gordon"}}},
+		{"/info/slash%2Fgordon/project/Project%20%231", false, "/info/:user/project/:project", Params{Param{Key: "user", Value: "slash/gordon"}, Param{Key: "project", Value: "Project #1"}}},
+		{"/info/slash%%%%", false, "/info/:user", Params{Param{Key: "user", Value: "slash%%%%"}}},
+		{"/info/slash%%%%2Fgordon/project/Project%%%%20%231", false, "/info/:user/project/:project", Params{Param{Key: "user", Value: "slash%%%%2Fgordon"}, Param{Key: "project", Value: "Project%%%%20%231"}}},
 	}, unescape)
 
 	checkPriorities(t, tree)
@@ -260,7 +246,7 @@ func testRoutes(t *testing.T, routes []testRoute) {
 
 	for _, route := range routes {
 		recv := catchPanic(func() {
-			tree.AddRoute(route.path, nil)
+			tree.addRoute(route.path, nil)
 		})
 
 		if route.conflict {
@@ -271,8 +257,6 @@ func testRoutes(t *testing.T, routes []testRoute) {
 			t.Errorf("unexpected panic for route '%s': %v", route.path, recv)
 		}
 	}
-
-	//printChildren(tree, "")
 }
 
 func TestTreeWildcardConflict(t *testing.T) {
@@ -324,7 +308,7 @@ func TestTreeDupliatePath(t *testing.T) {
 	}
 	for _, route := range routes {
 		recv := catchPanic(func() {
-			tree.AddRoute(route, fakeHandler(route))
+			tree.addRoute(route, fakeHandler(route))
 		})
 		if recv != nil {
 			t.Fatalf("panic inserting route '%s': %v", route, recv)
@@ -332,21 +316,19 @@ func TestTreeDupliatePath(t *testing.T) {
 
 		// Add again
 		recv = catchPanic(func() {
-			tree.AddRoute(route, nil)
+			tree.addRoute(route, nil)
 		})
 		if recv == nil {
 			t.Fatalf("no panic while inserting duplicate route '%s", route)
 		}
 	}
 
-	//printChildren(tree, "")
-
 	checkRequests(t, tree, testRequests{
 		{"/", false, "/", nil},
 		{"/doc/", false, "/doc/", nil},
-		{"/src/some/file.png", false, "/src/*filepath", Params{Param{"filepath", "/some/file.png"}}},
-		{"/search/someth!ng+in+ünìcodé", false, "/search/:query", Params{Param{"query", "someth!ng+in+ünìcodé"}}},
-		{"/user_gopher", false, "/user_:name", Params{Param{"name", "gopher"}}},
+		{"/src/some/file.png", false, "/src/*filepath", Params{Param{Key: "filepath", Value: "/some/file.png"}}},
+		{"/search/someth!ng+in+ünìcodé", false, "/search/:query", Params{Param{Key: "query", Value: "someth!ng+in+ünìcodé"}}},
+		{"/user_gopher", false, "/user_:name", Params{Param{Key: "name", Value: "gopher"}}},
 	})
 }
 
@@ -361,7 +343,7 @@ func TestEmptyWildcardName(t *testing.T) {
 	}
 	for _, route := range routes {
 		recv := catchPanic(func() {
-			tree.AddRoute(route, nil)
+			tree.addRoute(route, nil)
 		})
 		if recv == nil {
 			t.Fatalf("no panic while inserting route with empty wildcard name '%s", route)
@@ -398,7 +380,7 @@ func TestTreeDoubleWildcard(t *testing.T) {
 	for _, route := range routes {
 		tree := &Node{}
 		recv := catchPanic(func() {
-			tree.AddRoute(route, nil)
+			tree.addRoute(route, nil)
 		})
 
 		if rs, ok := recv.(string); !ok || !strings.HasPrefix(rs, panicMsg) {
@@ -448,14 +430,12 @@ func TestTreeTrailingSlashRedirect(t *testing.T) {
 	}
 	for _, route := range routes {
 		recv := catchPanic(func() {
-			tree.AddRoute(route, fakeHandler(route))
+			tree.addRoute(route, fakeHandler(route))
 		})
 		if recv != nil {
 			t.Fatalf("panic inserting route '%s': %v", route, recv)
 		}
 	}
-
-	//printChildren(tree, "")
 
 	tsrRoutes := [...]string{
 		"/hi/",
@@ -504,7 +484,7 @@ func TestTreeRootTrailingSlashRedirect(t *testing.T) {
 	tree := &Node{}
 
 	recv := catchPanic(func() {
-		tree.AddRoute("/:test", fakeHandler("/:test"))
+		tree.addRoute("/:test", fakeHandler("/:test"))
 	})
 	if recv != nil {
 		t.Fatalf("panic inserting test route: %v", recv)
@@ -548,7 +528,7 @@ func TestTreeFindCaseInsensitivePath(t *testing.T) {
 
 	for _, route := range routes {
 		recv := catchPanic(func() {
-			tree.AddRoute(route, fakeHandler(route))
+			tree.addRoute(route, fakeHandler(route))
 		})
 		if recv != nil {
 			t.Fatalf("panic inserting route '%s': %v", route, recv)
@@ -653,8 +633,8 @@ func TestTreeInvalidNodeType(t *testing.T) {
 	const panicMsg = "invalid node type"
 
 	tree := &Node{}
-	tree.AddRoute("/", fakeHandler("/"))
-	tree.AddRoute("/:page", fakeHandler("/:page"))
+	tree.addRoute("/", fakeHandler("/"))
+	tree.addRoute("/:page", fakeHandler("/:page"))
 
 	// set invalid node type
 	tree.children[0].nType = 42
@@ -673,5 +653,45 @@ func TestTreeInvalidNodeType(t *testing.T) {
 	})
 	if rs, ok := recv.(string); !ok || rs != panicMsg {
 		t.Fatalf("Expected panic '"+panicMsg+"', got '%v'", recv)
+	}
+}
+
+func TestTreeWildcardConflictEx(t *testing.T) {
+	conflicts := [...]struct {
+		route        string
+		segPath      string
+		existPath    string
+		existSegPath string
+	}{
+		{"/who/are/foo", "/foo", `/who/are/\*you`, `/\*you`},
+		{"/who/are/foo/", "/foo/", `/who/are/\*you`, `/\*you`},
+		{"/who/are/foo/bar", "/foo/bar", `/who/are/\*you`, `/\*you`},
+		{"/conxxx", "xxx", `/con:tact`, `:tact`},
+		{"/conooo/xxx", "ooo", `/con:tact`, `:tact`},
+	}
+
+	for _, conflict := range conflicts {
+		// I have to re-create a 'tree', because the 'tree' will be
+		// in an inconsistent state when the loop recovers from the
+		// panic which threw by 'addRoute' function.
+		tree := &Node{}
+		routes := [...]string{
+			"/con:tact",
+			"/who/are/*you",
+			"/who/foo/hello",
+		}
+
+		for _, route := range routes {
+			tree.addRoute(route, fakeHandler(route))
+		}
+
+		recv := catchPanic(func() {
+			tree.addRoute(conflict.route, fakeHandler(conflict.route))
+		})
+
+		if !regexp.MustCompile(fmt.Sprintf("'%s' in new path .* conflicts with existing wildcard '%s' in existing prefix '%s'",
+			conflict.segPath, conflict.existSegPath, conflict.existPath)).MatchString(fmt.Sprint(recv)) {
+			t.Fatalf("invalid wildcard conflict error (%v)", recv)
+		}
 	}
 }

@@ -9,28 +9,28 @@ import (
 	"fmt"
 	"reflect"
 
-	"github.com/lerryxiao/gin/json"
+	"github.com/lerryxiao/gin/internal/json"
 )
 
-// ErrorType 错误类型
+// ErrorType is an unsigned 64-bit error code as defined in the gin spec.
 type ErrorType uint64
 
 const (
-	// ErrorTypeBind 绑定错误
-	ErrorTypeBind ErrorType = 1 << 63 // used when c.Bind() fails
-	// ErrorTypeRender 渲染错误
-	ErrorTypeRender ErrorType = 1 << 62 // used when c.Render() fails
-	// ErrorTypePrivate 私有错误
+	// ErrorTypeBind is used when Context.Bind() fails.
+	ErrorTypeBind ErrorType = 1 << 63
+	// ErrorTypeRender is used when Context.Render() fails.
+	ErrorTypeRender ErrorType = 1 << 62
+	// ErrorTypePrivate indicates a private error.
 	ErrorTypePrivate ErrorType = 1 << 0
-	// ErrorTypePublic 公共错误
+	// ErrorTypePublic indicates a public error.
 	ErrorTypePublic ErrorType = 1 << 1
-	// ErrorTypeAny 任意错误
+	// ErrorTypeAny indicates any other error.
 	ErrorTypeAny ErrorType = 1<<64 - 1
-	// ErrorTypeNu 空错误
+	// ErrorTypeNu indicates any other error.
 	ErrorTypeNu = 2
 )
 
-// Error 错误结构
+// Error represents a error's specification.
 type Error struct {
 	Err  error
 	Type ErrorType
@@ -41,19 +41,19 @@ type errorMsgs []*Error
 
 var _ error = &Error{}
 
-// SetType 设置错误类型
+// SetType sets the error's type.
 func (msg *Error) SetType(flags ErrorType) *Error {
 	msg.Type = flags
 	return msg
 }
 
-// SetMeta 设置错误内容
+// SetMeta sets the error's meta data.
 func (msg *Error) SetMeta(data interface{}) *Error {
 	msg.Meta = data
 	return msg
 }
 
-// JSON 序列化json
+// JSON creates a properly formated JSON
 func (msg *Error) JSON() interface{} {
 	json := H{}
 	if msg.Meta != nil {
@@ -80,12 +80,12 @@ func (msg *Error) MarshalJSON() ([]byte, error) {
 	return json.Marshal(msg.JSON())
 }
 
-// Error implements the error interface
+// Error implements the error interface.
 func (msg Error) Error() string {
 	return msg.Err.Error()
 }
 
-// IsType 是否某个类型
+// IsType judges one error.
 func (msg *Error) IsType(flags ErrorType) bool {
 	return (msg.Type & flags) > 0
 }
@@ -149,6 +149,7 @@ func (a errorMsgs) JSON() interface{} {
 	}
 }
 
+// MarshalJSON implements the json.Marshaller interface.
 func (a errorMsgs) MarshalJSON() ([]byte, error) {
 	return json.Marshal(a.JSON())
 }
@@ -159,7 +160,7 @@ func (a errorMsgs) String() string {
 	}
 	var buffer bytes.Buffer
 	for i, msg := range a {
-		fmt.Fprintf(&buffer, "Error #%02d: %s\n", (i + 1), msg.Err)
+		fmt.Fprintf(&buffer, "Error #%02d: %s\n", i+1, msg.Err)
 		if msg.Meta != nil {
 			fmt.Fprintf(&buffer, "     Meta: %v\n", msg.Meta)
 		}

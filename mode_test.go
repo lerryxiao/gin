@@ -17,26 +17,30 @@ func init() {
 }
 
 func TestSetMode(t *testing.T) {
-	assert.Equal(t, ginMode, testCode)
-	assert.Equal(t, Mode(), TestMode)
+	assert.Equal(t, testCode, ginMode)
+	assert.Equal(t, TestMode, Mode())
 	os.Unsetenv(EnvGinMode)
 
+	SetMode("")
+	assert.Equal(t, debugCode, ginMode)
+	assert.Equal(t, DebugMode, Mode())
+
 	SetMode(DebugMode)
-	assert.Equal(t, ginMode, debugCode)
-	assert.Equal(t, Mode(), DebugMode)
+	assert.Equal(t, debugCode, ginMode)
+	assert.Equal(t, DebugMode, Mode())
 
 	SetMode(ReleaseMode)
-	assert.Equal(t, ginMode, releaseCode)
-	assert.Equal(t, Mode(), ReleaseMode)
+	assert.Equal(t, releaseCode, ginMode)
+	assert.Equal(t, ReleaseMode, Mode())
 
 	SetMode(TestMode)
-	assert.Equal(t, ginMode, testCode)
-	assert.Equal(t, Mode(), TestMode)
+	assert.Equal(t, testCode, ginMode)
+	assert.Equal(t, TestMode, Mode())
 
 	assert.Panics(t, func() { SetMode("unknown") })
 }
 
-func TestEnableJsonDecoderUseNumber(t *testing.T) {
+func TestEnableJSONDecoderUseNumber(t *testing.T) {
 	assert.False(t, binding.EnableDecoderUseNumber)
 	EnableJSONDecoderUseNumber()
 	assert.True(t, binding.EnableDecoderUseNumber)
