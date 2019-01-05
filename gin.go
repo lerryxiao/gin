@@ -327,6 +327,21 @@ func (engine *Engine) Run(addr ...string) (err error) {
 	return
 }
 
+// GainSrv 创建服务对象
+func (engine *Engine) GainSrv(addr ...string) *http.Server {
+	return &http.Server{
+		Addr:    resolveAddress(addr),
+		Handler: engine,
+	}
+}
+
+// RunSrv 通过服务对象执行
+func (engine *Engine) RunSrv(server *http.Server) (err error) {
+	defer func() { debugPrintError(err) }()
+	debugPrint("Listening and serving HTTP on %s\n", server.Addr)
+	return server.ListenAndServe()
+}
+
 // RunTLS attaches the router to a http.Server and starts listening and serving HTTPS (secure) requests.
 // It is a shortcut for http.ListenAndServeTLS(addr, certFile, keyFile, router)
 // Note: this method will block the calling goroutine indefinitely unless an error happens.
