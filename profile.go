@@ -41,7 +41,7 @@ func Context2Write(fc func(w io.Writer)) func(*Context) {
 
 func registHandl(group *RouterGroup, url string, fn func(*Context)) {
 	group.GET(url, fn)
-	group.POST(url, fn)
+	//group.POST(url, fn)
 }
 
 // RegPprof 注册pprof信息显示
