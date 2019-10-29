@@ -8,6 +8,7 @@ import (
 	"bytes"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"net/http"
 
 	"github.com/lerryxiao/gin/internal/json"
@@ -24,11 +25,18 @@ func (jsonBinding) Name() string {
 	return "json"
 }
 
-func (jsonBinding) Bind(req *http.Request, obj interface{}) error {
+func (b jsonBinding) Bind(req *http.Request, dt []byte, obj interface{}) ([]byte, error) {
 	if req == nil || req.Body == nil {
-		return fmt.Errorf("invalid request")
+		return nil, fmt.Errorf("invalid request")
 	}
-	return decodeJSON(req.Body, obj)
+	buf, err := ioutil.ReadAll(req.Body)
+	if err != nil {
+		return nil, err
+	}
+	if buf == nil || len(buf) <= 0 {
+		buf = dt
+	}
+	return buf, b.BindBody(buf, obj)
 }
 
 func (jsonBinding) BindBody(body []byte, obj interface{}) error {

@@ -7,6 +7,7 @@ package binding
 import (
 	"bytes"
 	"io"
+	"io/ioutil"
 	"net/http"
 
 	"github.com/ugorji/go/codec"
@@ -18,8 +19,15 @@ func (msgpackBinding) Name() string {
 	return "msgpack"
 }
 
-func (msgpackBinding) Bind(req *http.Request, obj interface{}) error {
-	return decodeMsgPack(req.Body, obj)
+func (b msgpackBinding) Bind(req *http.Request, dt []byte, obj interface{}) ([]byte, error) {
+	buf, err := ioutil.ReadAll(req.Body)
+	if err != nil {
+		return nil, err
+	}
+	if buf == nil || len(buf) <= 0 {
+		buf = dt
+	}
+	return buf, b.BindBody(buf, obj)
 }
 
 func (msgpackBinding) BindBody(body []byte, obj interface{}) error {

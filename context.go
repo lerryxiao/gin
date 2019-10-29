@@ -61,6 +61,9 @@ type Context struct {
 
 	// Err400to200 400错误转200
 	Err400to200 bool
+
+	// BodyData 消息体数据
+	BodyData []byte
 }
 
 /************************************/
@@ -609,7 +612,11 @@ func (c *Context) ShouldBindURI(obj interface{}) error {
 // ShouldBindWith binds the passed struct pointer using the specified binding engine.
 // See the binding package.
 func (c *Context) ShouldBindWith(obj interface{}, b binding.Binding) error {
-	return b.Bind(c.Request, obj)
+	val, err := b.Bind(c.Request, c.BodyData, obj)
+	if val != nil && c.BodyData == nil {
+		c.BodyData = val
+	}
+	return err
 }
 
 // ShouldBindBodyWith is similar with ShouldBindWith, but it stores the request
