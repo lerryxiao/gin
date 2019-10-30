@@ -26,21 +26,16 @@ const (
 // the form POST.
 type Binding interface {
 	Name() string
-	Bind(*http.Request, []byte, interface{}) ([]byte, error)
-}
-
-// IBody adds BindBody method to Binding. BindBody is similar with Bind,
-// but it reads the body from supplied bytes instead of req.Body.
-type IBody interface {
-	Binding
+	NeedBody() bool
+	Bind(*http.Request, interface{}) error
 	BindBody([]byte, interface{}) error
 }
 
-// IURI adds BindURI method to Binding. BindURI is similar with Bind,
+// BindingUri adds BindUri method to Binding. BindUri is similar with Bind,
 // but it read the Params.
-type IURI interface {
+type BindingUri interface {
 	Name() string
-	BindURI(map[string][]string, interface{}) error
+	BindUri(map[string][]string, interface{}) error
 }
 
 // StructValidator is the minimal interface which needs to be implemented in
@@ -77,7 +72,8 @@ var (
 	ProtoBuf      = protobufBinding{}
 	MsgPack       = msgpackBinding{}
 	YAML          = yamlBinding{}
-	URI           = uriBinding{}
+	Uri           = uriBinding{}
+	Header        = headerBinding{}
 )
 
 // Default returns the appropriate Binding instance based on the HTTP method
@@ -98,7 +94,9 @@ func Default(method, contentType string) Binding {
 		return MsgPack
 	case MIMEYAML:
 		return YAML
-	default: //case MIMEPOSTForm, MIMEMultipartPOSTForm:
+	case MIMEMultipartPOSTForm:
+		return FormMultipart
+	default: // case MIMEPOSTForm:
 		return Form
 	}
 }

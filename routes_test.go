@@ -16,8 +16,16 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func performRequest(r http.Handler, method, path string) *httptest.ResponseRecorder {
-	req, _ := http.NewRequest(method, path, nil)
+type header struct {
+	Key   string
+	Value string
+}
+
+func performRequest(r http.Handler, method, path string, headers ...header) *httptest.ResponseRecorder {
+	req := httptest.NewRequest(method, path, nil)
+	for _, h := range headers {
+		req.Header.Add(h.Key, h.Value)
+	}
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, req)
 	return w
@@ -170,6 +178,13 @@ func TestRouteRedirectTrailingSlash(t *testing.T) {
 	w = performRequest(router, "PUT", "/path4/")
 	assert.Equal(t, http.StatusOK, w.Code)
 
+	w = performRequest(router, "GET", "/path2", header{Key: "X-Forwarded-Prefix", Value: "/api"})
+	assert.Equal(t, "/api/path2/", w.Header().Get("Location"))
+	assert.Equal(t, 301, w.Code)
+
+	w = performRequest(router, "GET", "/path2/", header{Key: "X-Forwarded-Prefix", Value: "/api/"})
+	assert.Equal(t, 200, w.Code)
+
 	router.RedirectTrailingSlash = false
 
 	w = performRequest(router, "GET", "/path/")
@@ -242,6 +257,39 @@ func TestRouteParamsByName(t *testing.T) {
 	assert.Equal(t, "/is/super/great", wild)
 }
 
+// TestContextParamsGet tests that a parameter can be parsed from the URL even with extra slashes.
+func TestRouteParamsByNameWithExtraSlash(t *testing.T) {
+	name := ""
+	lastName := ""
+	wild := ""
+	router := New()
+	router.GET("/test/:name/:last_name/*wild", func(c *Context) {
+		name = c.Params.ByName("name")
+		lastName = c.Params.ByName("last_name")
+		var ok bool
+		wild, ok = c.Params.Get("wild")
+
+		assert.True(t, ok)
+		assert.Equal(t, name, c.Param("name"))
+		assert.Equal(t, name, c.Param("name"))
+		assert.Equal(t, lastName, c.Param("last_name"))
+
+		assert.Empty(t, c.Param("wtf"))
+		assert.Empty(t, c.Params.ByName("wtf"))
+
+		wtf, ok := c.Params.Get("wtf")
+		assert.Empty(t, wtf)
+		assert.False(t, ok)
+	})
+
+	w := performRequest(router, "GET", "//test//john//smith//is//super//great")
+
+	assert.Equal(t, http.StatusOK, w.Code)
+	assert.Equal(t, "john", name)
+	assert.Equal(t, "smith", lastName)
+	assert.Equal(t, "/is/super/great", wild)
+}
+
 // TestHandleStaticFile - ensure the static file handles properly
 func TestRouteStaticFile(t *testing.T) {
 	// SETUP file
@@ -251,7 +299,8 @@ func TestRouteStaticFile(t *testing.T) {
 		t.Error(err)
 	}
 	defer os.Remove(f.Name())
-	f.WriteString("Gin Web Framework")
+	_, err = f.WriteString("Gin Web Framework")
+	assert.NoError(t, err)
 	f.Close()
 
 	dir, filename := filepath.Split(f.Name())
@@ -337,7 +386,7 @@ func TestRouteNotAllowedEnabled2(t *testing.T) {
 	router := New()
 	router.HandleMethodNotAllowed = true
 	// add one methodTree to trees
-	router.AddRoute("POST", "/", HandlersChain{func(_ *Context) {}})
+	router.addRoute("POST", "/", HandlersChain{func(_ *Context) {}})
 	router.GET("/path2", func(c *Context) {})
 	w := performRequest(router, "POST", "/path2")
 	assert.Equal(t, http.StatusMethodNotAllowed, w.Code)
@@ -370,15 +419,14 @@ func TestRouterNotFound(t *testing.T) {
 		code     int
 		location string
 	}{
-		{"/path/", http.StatusMovedPermanently, "/path"},   // TSR -/
-		{"/dir", http.StatusMovedPermanently, "/dir/"},     // TSR +/
-		{"", http.StatusMovedPermanently, "/"},             // TSR +/
-		{"/PATH", http.StatusMovedPermanently, "/path"},    // Fixed Case
-		{"/DIR/", http.StatusMovedPermanently, "/dir/"},    // Fixed Case
-		{"/PATH/", http.StatusMovedPermanently, "/path"},   // Fixed Case -/
-		{"/DIR", http.StatusMovedPermanently, "/dir/"},     // Fixed Case +/
-		{"/../path", http.StatusMovedPermanently, "/path"}, // CleanPath
-		{"/nope", http.StatusNotFound, ""},                 // NotFound
+		{"/path/", http.StatusMovedPermanently, "/path"}, // TSR -/
+		{"/dir", http.StatusMovedPermanently, "/dir/"},   // TSR +/
+		{"/PATH", http.StatusMovedPermanently, "/path"},  // Fixed Case
+		{"/DIR/", http.StatusMovedPermanently, "/dir/"},  // Fixed Case
+		{"/PATH/", http.StatusMovedPermanently, "/path"}, // Fixed Case -/
+		{"/DIR", http.StatusMovedPermanently, "/dir/"},   // Fixed Case +/
+		{"/../path", http.StatusOK, ""},                  // CleanPath
+		{"/nope", http.StatusNotFound, ""},               // NotFound
 	}
 	for _, tr := range testRoutes {
 		w := performRequest(router, "GET", tr.route)
@@ -413,7 +461,6 @@ func TestRouterNotFound(t *testing.T) {
 
 func TestRouterStaticFSNotFound(t *testing.T) {
 	router := New()
-
 	router.StaticFS("/", http.FileSystem(http.Dir("/thisreallydoesntexist/")))
 	router.NoRoute(func(c *Context) {
 		c.String(404, "non existent")
@@ -424,6 +471,37 @@ func TestRouterStaticFSNotFound(t *testing.T) {
 
 	w = performRequest(router, "HEAD", "/nonexistent")
 	assert.Equal(t, "non existent", w.Body.String())
+}
+
+func TestRouterStaticFSFileNotFound(t *testing.T) {
+	router := New()
+
+	router.StaticFS("/", http.FileSystem(http.Dir(".")))
+
+	assert.NotPanics(t, func() {
+		performRequest(router, "GET", "/nonexistent")
+	})
+}
+
+// Reproduction test for the bug of issue #1805
+func TestMiddlewareCalledOnceByRouterStaticFSNotFound(t *testing.T) {
+	router := New()
+
+	// Middleware must be called just only once by per request.
+	middlewareCalledNum := 0
+	router.Use(func(c *Context) {
+		middlewareCalledNum += 1
+	})
+
+	router.StaticFS("/", http.FileSystem(http.Dir("/thisreallydoesntexist/")))
+
+	// First access
+	performRequest(router, "GET", "/nonexistent")
+	assert.Equal(t, 1, middlewareCalledNum)
+
+	// Second access
+	performRequest(router, "HEAD", "/nonexistent")
+	assert.Equal(t, 2, middlewareCalledNum)
 }
 
 func TestRouteRawPath(t *testing.T) {
@@ -475,4 +553,44 @@ func TestRouteServeErrorWithWriteHeader(t *testing.T) {
 	w := performRequest(route, "GET", "/NotFound")
 	assert.Equal(t, 421, w.Code)
 	assert.Equal(t, 0, w.Body.Len())
+}
+
+func TestRouteContextHoldsFullPath(t *testing.T) {
+	router := New()
+
+	// Test routes
+	routes := []string{
+		"/simple",
+		"/project/:name",
+		"/",
+		"/news/home",
+		"/news",
+		"/simple-two/one",
+		"/simple-two/one-two",
+		"/project/:name/build/*params",
+		"/project/:name/bui",
+	}
+
+	for _, route := range routes {
+		actualRoute := route
+		router.GET(route, func(c *Context) {
+			// For each defined route context should contain its full path
+			assert.Equal(t, actualRoute, c.FullPath())
+			c.AbortWithStatus(http.StatusOK)
+		})
+	}
+
+	for _, route := range routes {
+		w := performRequest(router, "GET", route)
+		assert.Equal(t, http.StatusOK, w.Code)
+	}
+
+	// Test not found
+	router.Use(func(c *Context) {
+		// For not found routes full path is empty
+		assert.Equal(t, "", c.FullPath())
+	})
+
+	w := performRequest(router, "GET", "/not-found")
+	assert.Equal(t, http.StatusNotFound, w.Code)
 }

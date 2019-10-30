@@ -8,6 +8,7 @@ import (
 	"bufio"
 	"crypto/tls"
 	"fmt"
+	"html/template"
 	"io/ioutil"
 	"net"
 	"net/http"
@@ -69,6 +70,43 @@ func TestRunTLS(t *testing.T) {
 	testRequest(t, "https://localhost:8443/example")
 }
 
+func TestPusher(t *testing.T) {
+	var html = template.Must(template.New("https").Parse(`
+<html>
+<head>
+  <title>Https Test</title>
+  <script src="/assets/app.js"></script>
+</head>
+<body>
+  <h1 style="color:red;">Welcome, Ginner!</h1>
+</body>
+</html>
+`))
+
+	router := New()
+	router.Static("./assets", "./assets")
+	router.SetHTMLTemplate(html)
+
+	go func() {
+		router.GET("/pusher", func(c *Context) {
+			if pusher := c.Writer.Pusher(); pusher != nil {
+				err := pusher.Push("/assets/app.js", nil)
+				assert.NoError(t, err)
+			}
+			c.String(http.StatusOK, "it worked")
+		})
+
+		assert.NoError(t, router.RunTLS(":8449", "./testdata/certificate/cert.pem", "./testdata/certificate/key.pem"))
+	}()
+
+	// have to wait for the goroutine to start and run the server
+	// otherwise the main thread will complete
+	time.Sleep(5 * time.Millisecond)
+
+	assert.Error(t, router.RunTLS(":8449", "./testdata/certificate/cert.pem", "./testdata/certificate/key.pem"))
+	testRequest(t, "https://localhost:8449/pusher")
+}
+
 func TestRunEmptyWithEnv(t *testing.T) {
 	os.Setenv("PORT", "3123")
 	router := New()
@@ -87,7 +125,7 @@ func TestRunEmptyWithEnv(t *testing.T) {
 func TestRunTooMuchParams(t *testing.T) {
 	router := New()
 	assert.Panics(t, func() {
-		router.Run("2", "2")
+		assert.NoError(t, router.Run("2", "2"))
 	})
 }
 
@@ -137,7 +175,7 @@ func TestBadUnixSocket(t *testing.T) {
 func TestFileDescriptor(t *testing.T) {
 	router := New()
 
-	addr, err := net.ResolveTCPAddr("tcp", ":8000")
+	addr, err := net.ResolveTCPAddr("tcp", "localhost:0")
 	assert.NoError(t, err)
 	listener, err := net.ListenTCP("tcp", addr)
 	assert.NoError(t, err)
@@ -152,7 +190,7 @@ func TestFileDescriptor(t *testing.T) {
 	// otherwise the main thread will complete
 	time.Sleep(5 * time.Millisecond)
 
-	c, err := net.Dial("tcp", "localhost:8000")
+	c, err := net.Dial("tcp", listener.Addr().String())
 	assert.NoError(t, err)
 
 	fmt.Fprintf(c, "GET /example HTTP/1.0\r\n\r\n")
@@ -168,6 +206,43 @@ func TestFileDescriptor(t *testing.T) {
 func TestBadFileDescriptor(t *testing.T) {
 	router := New()
 	assert.Error(t, router.RunFd(0))
+}
+
+func TestListener(t *testing.T) {
+	router := New()
+	addr, err := net.ResolveTCPAddr("tcp", "localhost:0")
+	assert.NoError(t, err)
+	listener, err := net.ListenTCP("tcp", addr)
+	assert.NoError(t, err)
+	go func() {
+		router.GET("/example", func(c *Context) { c.String(http.StatusOK, "it worked") })
+		assert.NoError(t, router.RunListener(listener))
+	}()
+	// have to wait for the goroutine to start and run the server
+	// otherwise the main thread will complete
+	time.Sleep(5 * time.Millisecond)
+
+	c, err := net.Dial("tcp", listener.Addr().String())
+	assert.NoError(t, err)
+
+	fmt.Fprintf(c, "GET /example HTTP/1.0\r\n\r\n")
+	scanner := bufio.NewScanner(c)
+	var response string
+	for scanner.Scan() {
+		response += scanner.Text()
+	}
+	assert.Contains(t, response, "HTTP/1.0 200", "should get a 200")
+	assert.Contains(t, response, "it worked", "resp body should match")
+}
+
+func TestBadListener(t *testing.T) {
+	router := New()
+	addr, err := net.ResolveTCPAddr("tcp", "localhost:10086")
+	assert.NoError(t, err)
+	listener, err := net.ListenTCP("tcp", addr)
+	assert.NoError(t, err)
+	listener.Close()
+	assert.Error(t, router.RunListener(listener))
 }
 
 func TestWithHttptestWithAutoSelectedPort(t *testing.T) {
@@ -188,15 +263,12 @@ func TestConcurrentHandleContext(t *testing.T) {
 	})
 	router.GET("/example", func(c *Context) { c.String(http.StatusOK, "it worked") })
 
-	ts := httptest.NewServer(router)
-	defer ts.Close()
-
 	var wg sync.WaitGroup
 	iterations := 200
 	wg.Add(iterations)
 	for i := 0; i < iterations; i++ {
 		go func() {
-			testRequest(t, ts.URL+"/")
+			testGetRequestHandler(t, router, "/")
 			wg.Done()
 		}()
 	}
@@ -217,3 +289,14 @@ func TestConcurrentHandleContext(t *testing.T) {
 
 // 	testRequest(t, "http://localhost:8033/example")
 // }
+
+func testGetRequestHandler(t *testing.T, h http.Handler, url string) {
+	req, err := http.NewRequest("GET", url, nil)
+	assert.NoError(t, err)
+
+	w := httptest.NewRecorder()
+	h.ServeHTTP(w, req)
+
+	assert.Equal(t, "it worked", w.Body.String(), "resp body should match")
+	assert.Equal(t, 200, w.Code, "should get a 200")
+}

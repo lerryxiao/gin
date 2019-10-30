@@ -36,37 +36,18 @@ type IRoutes interface {
 	StaticFS(string, http.FileSystem) IRoutes
 }
 
-// RouterFuncs 路由支持方法
-var RouterFuncs []string
-
-func initRouter() {
-	RouterFuncs = []string{
-		"GET",
-		"POST",
-		"PUT",
-		"PATCH",
-		"HEAD",
-		"OPTIONS",
-		"DELETE",
-		"CONNECT",
-		"TRACE",
-	}
-}
-
 // RouterGroup is used internally to configure router, a RouterGroup is associated with
 // a prefix and an array of handlers (middleware).
 type RouterGroup struct {
-	Handlers  HandlersChain
-	basePath  string
-	engine    *Engine
-	root      bool
-	routers   []string
-	hasrouter bool
+	Handlers HandlersChain
+	basePath string
+	engine   *Engine
+	root     bool
 }
 
 var _ IRouter = &RouterGroup{}
 
-// Use adds middleware to the group, see example code in github.
+// Use adds middleware to the group, see example code in GitHub.
 func (group *RouterGroup) Use(middleware ...HandlerFunc) IRoutes {
 	group.Handlers = append(group.Handlers, middleware...)
 	return group.returnObj()
@@ -75,24 +56,10 @@ func (group *RouterGroup) Use(middleware ...HandlerFunc) IRoutes {
 // Group creates a new router group. You should add all the routes that have common middlewares or the same path prefix.
 // For example, all the routes that use a common middleware for authorization could be grouped.
 func (group *RouterGroup) Group(relativePath string, handlers ...HandlerFunc) *RouterGroup {
-	absolutePath := group.calculateAbsolutePath(relativePath)
-	if absolutePath == group.basePath {
-		return group
-	}
-	group.engine.markRoute(absolutePath, true)
-	if len(group.routers) > 0 {
-		for _, path := range group.routers {
-			group.engine.markRoute(path, false)
-		}
-		group.routers = make([]string, 0)
-		group.hasrouter = true
-	}
 	return &RouterGroup{
-		Handlers:  group.combineHandlers(handlers),
-		basePath:  group.calculateAbsolutePath(relativePath),
-		engine:    group.engine,
-		routers:   make([]string, 0),
-		hasrouter: false,
+		Handlers: group.combineHandlers(handlers),
+		basePath: group.calculateAbsolutePath(relativePath),
+		engine:   group.engine,
 	}
 }
 
@@ -105,18 +72,13 @@ func (group *RouterGroup) BasePath() string {
 func (group *RouterGroup) handle(httpMethod, relativePath string, handlers HandlersChain) IRoutes {
 	absolutePath := group.calculateAbsolutePath(relativePath)
 	handlers = group.combineHandlers(handlers)
-	group.engine.AddRoute(httpMethod, absolutePath, handlers)
-	if group.root == true || group.hasrouter == true {
-		group.engine.markRoute(absolutePath, false)
-	} else {
-		group.routers = append(group.routers, absolutePath)
-	}
+	group.engine.addRoute(httpMethod, absolutePath, handlers)
 	return group.returnObj()
 }
 
 // Handle registers a new request handle and middleware with the given path and method.
 // The last handler should be the real handler, the other ones should be middleware that can and should be shared among different routes.
-// See the example code in github.
+// See the example code in GitHub.
 //
 // For GET, POST, PUT, PATCH and DELETE requests the respective shortcut
 // functions can be used.
@@ -169,23 +131,15 @@ func (group *RouterGroup) HEAD(relativePath string, handlers ...HandlerFunc) IRo
 // Any registers a route that matches all the HTTP methods.
 // GET, POST, PUT, PATCH, HEAD, OPTIONS, DELETE, CONNECT, TRACE.
 func (group *RouterGroup) Any(relativePath string, handlers ...HandlerFunc) IRoutes {
-	for _, key := range RouterFuncs {
-		group.handle(key, relativePath, handlers)
-	}
-	return group.returnObj()
-}
-
-// GetHandlers Has return the http handlers register by method and relativePath
-func (group *RouterGroup) GetHandlers(method, relativePath string) HandlersChain {
-	absolutePath := group.calculateAbsolutePath(relativePath)
-	return group.engine.GetHandlers(method, absolutePath)
-}
-
-// Del delete registed handlers by method and path
-func (group *RouterGroup) Del(method, relativePath string, handlers ...HandlerFunc) IRoutes {
-	absolutePath := group.calculateAbsolutePath(relativePath)
-	handlers = group.combineHandlers(handlers)
-	group.engine.DelRoute(method, absolutePath, handlers)
+	group.handle("GET", relativePath, handlers)
+	group.handle("POST", relativePath, handlers)
+	group.handle("PUT", relativePath, handlers)
+	group.handle("PATCH", relativePath, handlers)
+	group.handle("HEAD", relativePath, handlers)
+	group.handle("OPTIONS", relativePath, handlers)
+	group.handle("DELETE", relativePath, handlers)
+	group.handle("CONNECT", relativePath, handlers)
+	group.handle("TRACE", relativePath, handlers)
 	return group.returnObj()
 }
 
@@ -241,7 +195,7 @@ func (group *RouterGroup) createStaticHandler(relativePath string, fs http.FileS
 		// Check if file exists and/or if we have permission to access it
 		if _, err := fs.Open(file); err != nil {
 			c.Writer.WriteHeader(http.StatusNotFound)
-			c.handlers = group.engine.allNoRoute
+			c.handlers = group.engine.noRoute
 			// Reset index
 			c.index = -1
 			return
@@ -271,9 +225,4 @@ func (group *RouterGroup) returnObj() IRoutes {
 		return group.engine
 	}
 	return group
-}
-
-// GetGroupRoute get the mark group info
-func (group *RouterGroup) GetGroupRoute() *[]string {
-	return group.engine.getGroupRoute()
 }

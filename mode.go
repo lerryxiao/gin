@@ -22,7 +22,6 @@ const (
 	// TestMode indicates gin mode is test.
 	TestMode = "test"
 )
-
 const (
 	debugCode = iota
 	releaseCode
@@ -47,8 +46,6 @@ var modeName = DebugMode
 func init() {
 	mode := os.Getenv(EnvGinMode)
 	SetMode(mode)
-	initRouter()
-	initProfile()
 }
 
 // SetMode sets gin mode according to input string.
@@ -74,10 +71,16 @@ func DisableBindValidation() {
 	binding.Validator = nil
 }
 
-// EnableJSONDecoderUseNumber sets true for binding.EnableDecoderUseNumberto to
+// EnableJsonDecoderUseNumber sets true for binding.EnableDecoderUseNumber to
 // call the UseNumber method on the JSON Decoder instance.
-func EnableJSONDecoderUseNumber() {
+func EnableJsonDecoderUseNumber() {
 	binding.EnableDecoderUseNumber = true
+}
+
+// EnableJsonDisallowUnknownFields sets true for binding.EnableDecoderDisallowUnknownFields to
+// call the DisallowUnknownFields method on the JSON Decoder instance.
+func EnableJsonDecoderDisallowUnknownFields() {
+	binding.EnableDecoderDisallowUnknownFields = true
 }
 
 // Mode returns currently gin mode.

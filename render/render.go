@@ -29,7 +29,7 @@ var (
 	_ Render     = YAML{}
 	_ Render     = MsgPack{}
 	_ Render     = Reader{}
-	_ Render     = ASCIIJSON{}
+	_ Render     = AsciiJSON{}
 	_ Render     = ProtoBuf{}
 )
 

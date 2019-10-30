@@ -15,7 +15,7 @@ import (
 )
 
 // BindKey indicates a default bind key.
-const BindKey = "_lerryxiao/gin/bindkey"
+const BindKey = "_gin-gonic/gin/bindkey"
 
 // Bind is a helper function for given interface object and returns a Gin middleware.
 func Bind(val interface{}) HandlerFunc {
@@ -146,6 +146,6 @@ func resolveAddress(addr []string) string {
 	case 1:
 		return addr[0]
 	default:
-		panic("too much parameters")
+		panic("too many parameters")
 	}
 }

@@ -6,16 +6,18 @@ package binding
 
 import "net/http"
 
-type queryBinding struct{}
+type queryBinding struct {
+	noBindBody
+}
 
 func (queryBinding) Name() string {
 	return "query"
 }
 
-func (queryBinding) Bind(req *http.Request, dt []byte, obj interface{}) ([]byte, error) {
+func (queryBinding) Bind(req *http.Request, obj interface{}) error {
 	values := req.URL.Query()
 	if err := mapForm(obj, values); err != nil {
-		return nil, err
+		return err
 	}
-	return nil, validate(obj)
+	return validate(obj)
 }
