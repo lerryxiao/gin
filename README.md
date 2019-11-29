@@ -203,9 +203,9 @@ BenchmarkVulcan_GithubAll                   |    5000    |   394253    |   19894
 - [x] Battle tested
 - [x] API frozen, new releases will not break your code.
 
-## Build with [jsoniter](https://github.com/json-iterator/go)
+## Build with [jsoniter](https://github.com/jslyzt/jsoniter)
 
-Gin uses `encoding/json` as default json package but you can change to [jsoniter](https://github.com/json-iterator/go) by build from other tags.
+Gin uses `encoding/json` as default json package but you can change to [jsoniter](https://github.com/jslyzt/jsoniter) by build from other tags.
 
 ```sh
 $ go build -tags=jsoniter .

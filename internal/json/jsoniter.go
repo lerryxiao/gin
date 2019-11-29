@@ -6,7 +6,9 @@
 
 package json
 
-import "github.com/json-iterator/go"
+import (
+	"github.com/jslyzt/jsoniter"
+)
 
 var (
 	json = jsoniter.ConfigCompatibleWithStandardLibrary

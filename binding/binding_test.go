@@ -6,7 +6,7 @@ package binding
 
 import (
 	"bytes"
-	"encoding/json"
+	
 	"errors"
 	"io"
 	"io/ioutil"
@@ -18,6 +18,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/lerryxiao/gin/internal/json"
 	"github.com/lerryxiao/gin/testdata/protoexample"
 	"github.com/golang/protobuf/proto"
 	"github.com/stretchr/testify/assert"

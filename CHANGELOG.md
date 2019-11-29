@@ -70,7 +70,7 @@
 - [NEW] Add [`func (*Context) ShouldBind`](https://godoc.org/github.com/lerryxiao/gin#Context.ShouldBind), [`func (*Context) ShouldBindQuery`](https://godoc.org/github.com/lerryxiao/gin#Context.ShouldBindQuery) and [`func (*Context) ShouldBindJSON`](https://godoc.org/github.com/lerryxiao/gin#Context.ShouldBindJSON), see [#1047](https://github.com/lerryxiao/gin/pull/1047)
 - [NEW] Add support for `time.Time` location in form binding, see [#1117](https://github.com/lerryxiao/gin/pull/1117)
 - [NEW] Add [`func (*Context) BindQuery`](https://godoc.org/github.com/lerryxiao/gin#Context.BindQuery), see [#1029](https://github.com/lerryxiao/gin/pull/1029)
-- [NEW] Make [jsonite](https://github.com/json-iterator/go) optional with build tags, see [#1026](https://github.com/lerryxiao/gin/pull/1026)
+- [NEW] Make [jsonite](https://github.com/jslyzt/jsoniter) optional with build tags, see [#1026](https://github.com/lerryxiao/gin/pull/1026)
 - [NEW] Show query string in logger, see [#999](https://github.com/lerryxiao/gin/pull/999)
 - [NEW] Add [`func (*Context) SecureJSON`](https://godoc.org/github.com/lerryxiao/gin#Context.SecureJSON), see [#987](https://github.com/lerryxiao/gin/pull/987) and [#993](https://github.com/lerryxiao/gin/pull/993)
 - [DEPRECATE] `func (*Context) GetCookie` for [`func (*Context) Cookie`](https://godoc.org/github.com/lerryxiao/gin#Context.Cookie)
