@@ -11,8 +11,8 @@ github.com/go-playground/universal-translator v0.16.0/go.mod h1:1AnU7NaIRDWWzGEK
 github.com/golang/protobuf v1.3.2 h1:6nsPYzhq5kReh6QImI3k5qWzO4PEbvbIW2cwSfR/6xs=
 github.com/golang/protobuf v1.3.2/go.mod h1:6lQm79b+lXiMfvg/cZm0SGofjICqVBUtrP5yJMmIC1U=
 github.com/google/gofuzz v1.0.0/go.mod h1:dBl0BpW6vV/+mYPU4Po3pmUjxk6FQPldtuIdl/M65Eg=
-github.com/jslyzt/jsoniter v1.2.0 h1:IGTwshP20t06trHuarcIBfHQunC4NJbeiPTlsvgMORc=
-github.com/jslyzt/jsoniter v1.2.0/go.mod h1:9AsEIywCRGgIqQwHAMipNyJ9TzbCaE7Osut3cV6vWk0=
+github.com/jslyzt/jsoniter v1.2.1 h1:IspDtSK5wuapmOPhnZnQxYerDe3/Q5pVvHmmVcOjR1I=
+github.com/jslyzt/jsoniter v1.2.1/go.mod h1:9AsEIywCRGgIqQwHAMipNyJ9TzbCaE7Osut3cV6vWk0=
 github.com/leodido/go-urn v1.2.0 h1:hpXL4XnriNwQ/ABnpepYM/1vCLWNDfUNts8dX3xTG6Y=
 github.com/leodido/go-urn v1.2.0/go.mod h1:+8+nEpDfqqsY+g338gtMEUOtuK+4dEMhiQEgxpxOKII=
 github.com/mattn/go-isatty v0.0.10 h1:qxFzApOv4WsAL965uUPIsXzAKCZxN2p9UqdhFS4ZW10=
