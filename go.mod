@@ -7,7 +7,7 @@ require (
 	github.com/go-playground/locales v0.13.0 // indirect
 	github.com/go-playground/universal-translator v0.16.0 // indirect
 	github.com/golang/protobuf v1.3.2
-	github.com/jslyzt/jsoniter v1.1.9
+	github.com/jslyzt/jsoniter v1.2.0
 	github.com/leodido/go-urn v1.2.0 // indirect
 	github.com/mattn/go-isatty v0.0.10
 	github.com/stretchr/testify v1.4.0
