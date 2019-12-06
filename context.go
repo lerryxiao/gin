@@ -678,6 +678,9 @@ func (c *Context) ShouldBindBodyWith(obj interface{}, b binding.Binding) (err er
 		}
 		c.Set(BodyBytesKey, body)
 	}
+	if len(body) <= 0 {
+		return nil
+	}
 	return b.BindBody(body, obj)
 }
 
